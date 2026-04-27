@@ -568,6 +568,59 @@ H佐々貴
       const [toast, setToast] = useState(null); // 通知用
       const [showPrintPreview, setShowPrintPreview] = useState(false);
       const printPageRef = useRef(null);
+      const importFileRef = useRef(null);
+
+      // ===== 全データ エクスポート / インポート (PC引越し用) =====
+      const exportAllData = () => {
+        const exportData = {
+          appName: 'Dezoo',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          data: data,            // workers(color/所属) sites(優先メンバー含) 配置(全週) 予定 メモ 会社名
+          savedFiles: savedFiles, // 名前付き保存(ver.1, ver.2...)
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = toLocalDateStr(new Date());
+        a.href = url;
+        a.download = `Dezoo_backup_${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('バックアップファイルをダウンロードしました');
+      };
+
+      const importAllData = (file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          let parsed;
+          try {
+            parsed = JSON.parse(e.target.result);
+          } catch (err) {
+            showToast('JSONとして読込できません');
+            return;
+          }
+          if (!parsed || !parsed.data) {
+            showToast('Dezooバックアップ形式ではありません');
+            return;
+          }
+          askConfirm(
+            '現在のデータをすべて上書きします。\n(過去週・人員・現場・予定など全部)\nよろしいですか？',
+            () => {
+              const migrated = migrateData({ ...parsed.data });
+              setData(migrated);
+              if (Array.isArray(parsed.savedFiles)) {
+                setSavedFiles(parsed.savedFiles);
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify({ savedFiles: parsed.savedFiles }));
+              }
+              showToast('インポート完了。リロードを推奨');
+            }
+          );
+        };
+        reader.readAsText(file, 'UTF-8');
+      };
 
       // 画像でコピー (LINEなどへ貼付用)
       const copyAsImage = async () => {
@@ -3886,6 +3939,35 @@ H佐々貴
                           onBlur={(e) => setData(prev => ({ ...prev, companyName: e.target.value.trim() }))}
                           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                         />
+
+                        <hr style={{ margin: '24px 0', border: 0, borderTop: '1px solid #ddd' }} />
+
+                        <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                          データバックアップ
+                        </label>
+                        <div style={{ fontSize: 11, color: '#666', marginBottom: 10, lineHeight: 1.6 }}>
+                          PC買い替えなどの際に、全データをファイル出力 / 別PCで読み込み可能。<br/>
+                          保持される情報: 人員(カラー・所属含)、現場(優先メンバー含)、全週の配置、予定登録、メモ、会社名、保存履歴(ver.1, ver.2...)
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button className="btn" onClick={exportAllData}>
+                            <Download size={14} /> エクスポート(バックアップ作成)
+                          </button>
+                          <input
+                            type="file"
+                            accept=".json,application/json"
+                            ref={importFileRef}
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) importAllData(f);
+                              e.target.value = '';
+                            }}
+                          />
+                          <button className="btn" onClick={() => importFileRef.current?.click()}>
+                            <FolderOpen size={14} /> インポート(復元)
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
