@@ -437,8 +437,23 @@ H佐々貴
         if (!parsed.schedules.trainings) parsed.schedules.trainings = [];
         if (!parsed.schedules.required) parsed.schedules.required = [];
       }
-      // 週ごとメモ
+      // 週ごとメモ (旧:単一文字列、新:7要素配列)
       if (!parsed.weekMemos) parsed.weekMemos = {};
+      else {
+        Object.keys(parsed.weekMemos).forEach(wk => {
+          const v = parsed.weekMemos[wk];
+          if (typeof v === 'string') {
+            // 旧形式(日曜のみ)を配列に変換
+            parsed.weekMemos[wk] = ['', '', '', '', '', '', v];
+          } else if (!Array.isArray(v)) {
+            parsed.weekMemos[wk] = ['', '', '', '', '', '', ''];
+          } else if (v.length < 7) {
+            const arr = [...v];
+            while (arr.length < 7) arr.push('');
+            parsed.weekMemos[wk] = arr;
+          }
+        });
+      }
       // 「お休み」→「休み」リネーム
       if (parsed.sites) {
         parsed.sites = parsed.sites.map(s => (s.id === 'rest' && s.name === 'お休み') ? { ...s, name: '休み' } : s);
@@ -646,12 +661,18 @@ H佐々貴
 
       // ===== 週ごとアサインメント アクセスヘルパー =====
       const currentAssignments = data.assignmentsByWeek?.[data.weekStartDate] || emptyWeekAssignments();
-      const currentWeekMemo = data.weekMemos?.[data.weekStartDate] || '';
-      const updateWeekMemo = (text) => {
-        setData(prev => ({
-          ...prev,
-          weekMemos: { ...(prev.weekMemos || {}), [prev.weekStartDate]: text },
-        }));
+      const currentWeekMemos = data.weekMemos?.[data.weekStartDate] || ['', '', '', '', '', '', ''];
+      const updateWeekMemo = (dayIdx, text) => {
+        setData(prev => {
+          const cur = prev.weekMemos?.[prev.weekStartDate] || ['', '', '', '', '', '', ''];
+          const arr = [...cur];
+          while (arr.length < 7) arr.push('');
+          arr[dayIdx] = text;
+          return {
+            ...prev,
+            weekMemos: { ...(prev.weekMemos || {}), [prev.weekStartDate]: arr },
+          };
+        });
       };
 
       // 現在週のassignmentsだけを更新するヘルパー
@@ -2536,12 +2557,8 @@ H佐々貴
               border-right: 1px solid #ddd;
               border-bottom: 1px solid #ddd;
               padding: 4px;
-              background: #fafafa;
-              min-height: 50px;
-            }
-            .memo-row-cell-sun {
               background: #fff;
-              padding: 4px;
+              min-height: 44px;
             }
             .memo-input {
               width: 100%;
@@ -3299,6 +3316,22 @@ H佐々貴
                       );
                     })}
 
+                    {/* メモ行 (BBQ・新年会など、各曜日に記入可) */}
+                    <React.Fragment key="memo-row">
+                      <div className="grid-cell memo-label-cell">メモ</div>
+                      {Array(7).fill(null).map((_, day) => (
+                        <div key={day} className="grid-cell memo-row-cell">
+                          <textarea
+                            className="memo-input"
+                            placeholder="例) BBQ、新年会"
+                            value={currentWeekMemos[day] || ''}
+                            onChange={(e) => updateWeekMemo(day, e.target.value)}
+                            rows={2}
+                          />
+                        </div>
+                      ))}
+                    </React.Fragment>
+
                     {/* 各現場行 */}
                     {displaySites.map(site => {
                       const typeClass = site.type === 'day' ? 'day-type'
@@ -3511,24 +3544,6 @@ H佐々貴
                         </React.Fragment>
                       );
                     })}
-
-                    {/* メモ行 (BBQ・新年会など年に数回の一斉行事用) */}
-                    <React.Fragment key="memo-row">
-                      <div className="grid-cell memo-label-cell">メモ</div>
-                      {Array(7).fill(null).map((_, day) => (
-                        <div key={day} className={`grid-cell memo-row-cell ${day === 6 ? 'memo-row-cell-sun' : ''}`}>
-                          {day === 6 && (
-                            <textarea
-                              className="memo-input"
-                              placeholder="例) BBQ、新年会など"
-                              value={currentWeekMemo}
-                              onChange={(e) => updateWeekMemo(e.target.value)}
-                              rows={2}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </React.Fragment>
                   </div>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 11, color: '#666', padding: '0 4px' }}>
@@ -4348,6 +4363,15 @@ H佐々貴
                       </tr>
                     </thead>
                     <tbody>
+                      {/* メモ行(印刷): 何か入力があれば最上部に表示 */}
+                      {currentWeekMemos.some(m => m && m.trim()) && (
+                        <tr>
+                          <td className="td-site">メモ</td>
+                          {Array(7).fill(null).map((_, day) => (
+                            <td key={day} className="td-memo-print">{currentWeekMemos[day] || ''}</td>
+                          ))}
+                        </tr>
+                      )}
                       {orderedSites.map(site => (
                         <tr key={site.id}>
                           <td className="td-site">{site.name}</td>
@@ -4374,13 +4398,6 @@ H佐々貴
                           })}
                         </tr>
                       ))}
-                      {/* メモ行 */}
-                      {currentWeekMemo && currentWeekMemo.trim() && (
-                        <tr>
-                          <td className="td-site">メモ</td>
-                          <td colSpan={7} className="td-memo-print">{currentWeekMemo}</td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
