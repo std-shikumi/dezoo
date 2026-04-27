@@ -2976,19 +2976,20 @@ H佐々貴
 
             .print-table {
               width: 100%;
-              border-collapse: collapse;
+              border-collapse: separate;
+              border-spacing: 0;
               table-layout: fixed;
               font-size: 9pt;
+              border-top: 3px solid #000;
+              border-left: 3px solid #000;
             }
 
             .print-table th, .print-table td {
-              border: 3px solid #000;
+              border-right: 3px solid #000;
+              border-bottom: 3px solid #000;
               padding: 3px 4px;
               vertical-align: top;
               background: #fff;
-            }
-            .print-table {
-              border: 4px solid #000;
             }
 
             /* 各現場行の高さは動的に均等割りで設定(JSで inline style 付与) */
@@ -3065,7 +3066,8 @@ H佐々貴
             .print-table td.td-holiday {
               background: #e6e6e6 !important;
               background-clip: padding-box !important;
-              border: 3px solid #000 !important;
+              border-right: 3px solid #000 !important;
+              border-bottom: 3px solid #000 !important;
               position: relative;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -3153,15 +3155,16 @@ H佐々貴
               .print-title { font-size: 16pt; }
               .print-period { font-size: 10pt; margin-top: 1px !important; }
               .print-revision { font-size: 8pt; }
-              /* 罫線を太く */
+              /* 罫線を太く (セパレートモード版) */
               .print-table th, .print-table td {
-                border-width: 3px !important;
-                border-color: #000 !important;
+                border-right: 3px solid #000 !important;
+                border-bottom: 3px solid #000 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
               .print-table {
-                border-width: 4px !important;
+                border-top: 3px solid #000 !important;
+                border-left: 3px solid #000 !important;
               }
 
               /* 黒見出しは色付きで印刷（ヘッダ視認性のため） */
