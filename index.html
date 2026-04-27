@@ -2977,12 +2977,8 @@ H佐々貴
               background: #fff;
             }
 
-            /* 各現場行の高さを固定して、人数によらず表全体のサイズを安定させる */
-            .print-table tbody tr {
-              height: 14mm;
-            }
+            /* 各現場行の高さは動的に均等割りで設定(JSで inline style 付与) */
             .print-table tbody td {
-              height: 14mm;
               overflow: hidden;
             }
 
@@ -4372,41 +4368,53 @@ H佐々貴
                       </tr>
                     </thead>
                     <tbody>
+                      {/* A3横の使用可能高さ(約260mm)を全行で均等割り。
+                          メモ行(あれば) + 現場行 すべて等しい高さに */}
                       {/* メモ行(印刷): 何か入力があれば最上部に表示 */}
-                      {currentWeekMemos.some(m => m && m.trim()) && (
-                        <tr>
-                          <td className="td-site">メモ</td>
-                          {Array(7).fill(null).map((_, day) => (
-                            <td key={day} className="td-memo-print">{currentWeekMemos[day] || ''}</td>
-                          ))}
-                        </tr>
-                      )}
-                      {orderedSites.map(site => (
-                        <tr key={site.id}>
-                          <td className="td-site">{site.name}</td>
-                          {Array(7).fill(null).map((_, day) => {
-                            const workerIds = currentAssignments[day]?.[site.id] || [];
-                            const dStr = (() => {
-                              const d = parseLocalDate(data.weekStartDate);
-                              d.setDate(d.getDate() + day);
-                              return toLocalDateStr(d);
-                            })();
-                            const isHoliday = isCompanyHoliday(dStr);
-                            return (
-                              <td key={day} className={`td-workers ${isHoliday ? 'td-holiday' : ''}`}>
-                                <div className="print-workers-grid">
-                                  {workerIds.map(wid => {
-                                    const w = data.workers.find(x => x.id === wid);
-                                    return w ? (
-                                      <div key={wid} className="print-worker">{w.name}</div>
-                                    ) : null;
-                                  })}
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
+                      {currentWeekMemos.some(m => m && m.trim()) && (() => {
+                        const memoHasContent = true;
+                        const totalRows = orderedSites.length + 1;
+                        const rh = `${(260 / totalRows).toFixed(2)}mm`;
+                        return (
+                          <tr style={{ height: rh }}>
+                            <td className="td-site" style={{ height: rh }}>メモ</td>
+                            {Array(7).fill(null).map((_, day) => (
+                              <td key={day} className="td-memo-print" style={{ height: rh }}>{currentWeekMemos[day] || ''}</td>
+                            ))}
+                          </tr>
+                        );
+                      })()}
+                      {(() => {
+                        const memoHasContent = currentWeekMemos.some(m => m && m.trim());
+                        const totalRows = orderedSites.length + (memoHasContent ? 1 : 0);
+                        const rh = totalRows > 0 ? `${(260 / totalRows).toFixed(2)}mm` : 'auto';
+                        return orderedSites.map(site => (
+                          <tr key={site.id} style={{ height: rh }}>
+                            <td className="td-site" style={{ height: rh }}>{site.name}</td>
+                            {Array(7).fill(null).map((_, day) => {
+                              const workerIds = currentAssignments[day]?.[site.id] || [];
+                              const dStr = (() => {
+                                const d = parseLocalDate(data.weekStartDate);
+                                d.setDate(d.getDate() + day);
+                                return toLocalDateStr(d);
+                              })();
+                              const isHoliday = isCompanyHoliday(dStr);
+                              return (
+                                <td key={day} className={`td-workers ${isHoliday ? 'td-holiday' : ''}`} style={{ height: rh }}>
+                                  <div className="print-workers-grid">
+                                    {workerIds.map(wid => {
+                                      const w = data.workers.find(x => x.id === wid);
+                                      return w ? (
+                                        <div key={wid} className="print-worker">{w.name}</div>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>
