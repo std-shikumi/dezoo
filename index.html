@@ -32,6 +32,7 @@
   </script>
 
   <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <script type="text/babel" data-type="module" data-presets="react">
     import React, { useState, useEffect, useRef } from 'react';
@@ -566,7 +567,46 @@ H佐々貴
       const [confirmDialog, setConfirmDialog] = useState(null); // { message, onConfirm }
       const [toast, setToast] = useState(null); // 通知用
       const [showPrintPreview, setShowPrintPreview] = useState(false);
-      const printRef = useRef(null);
+      const printPageRef = useRef(null);
+
+      // 画像でコピー (LINEなどへ貼付用)
+      const copyAsImage = async () => {
+        if (!printPageRef.current) {
+          showToast('プレビューが見つかりません');
+          return;
+        }
+        if (!window.html2canvas) {
+          showToast('画像変換機能が読込中です。少し待って再度お試しください');
+          return;
+        }
+        showToast('画像生成中...');
+        try {
+          const canvas = await window.html2canvas(printPageRef.current, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            logging: false,
+          });
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              showToast('画像生成に失敗しました');
+              return;
+            }
+            try {
+              await navigator.clipboard.write([
+                new ClipboardItem({ 'image/png': blob }),
+              ]);
+              showToast('画像をコピーしました。LINEで Ctrl+V で貼付');
+            } catch (e) {
+              console.error('Clipboard write error:', e);
+              showToast('クリップボード書込に失敗(ブラウザの権限を確認)');
+            }
+          }, 'image/png');
+        } catch (e) {
+          console.error('html2canvas error:', e);
+          showToast('画像化エラー: ' + (e.message || e));
+        }
+      };
 
       // 並び替えD&D用 (workers/sites)
       const [reorderDrag, setReorderDrag] = useState(null); // { kind: 'worker'|'site', id }
@@ -4394,13 +4434,16 @@ H佐々貴
                     }}>
                       <Download size={14} /> 印刷 / PDF保存
                     </button>
+                    <button className="btn" onClick={copyAsImage}>
+                      <Copy size={14} /> 画像でコピー
+                    </button>
                     <button className="btn" onClick={() => setShowPrintPreview(false)}>
                       <X size={14} /> 閉じる
                     </button>
                   </div>
                 </div>
 
-                <div className="print-page">
+                <div className="print-page" ref={printPageRef}>
                   <div className="print-page-header">
                     <div className="print-title-block">
                       <div className="print-title">工事出面表</div>
