@@ -2971,10 +2971,13 @@ H佐々貴
             }
 
             .print-table th, .print-table td {
-              border: 1px solid #000;
+              border: 1.5px solid #000;
               padding: 3px 4px;
               vertical-align: top;
               background: #fff;
+            }
+            .print-table {
+              border: 2px solid #000;
             }
 
             /* 各現場行の高さは動的に均等割りで設定(JSで inline style 付与) */
@@ -2986,7 +2989,7 @@ H佐々貴
               background: #000 !important;
               color: #fff !important;
               font-weight: 900;
-              font-size: 10pt;
+              font-size: 11pt;
               padding: 4px 4px;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -2997,18 +3000,19 @@ H佐々貴
             }
 
             .print-table .th-day {
-              font-size: 10pt;
+              font-size: 13pt;
               font-weight: 900;
             }
             .print-table .th-date {
-              font-size: 8pt;
-              font-weight: 500;
-              opacity: 0.9;
+              font-size: 11pt;
+              font-weight: 700;
+              opacity: 0.95;
+              margin-top: 2px;
             }
 
             .print-table .td-site {
               font-weight: 700;
-              font-size: 9pt;
+              font-size: 11pt;
               word-break: break-all;
             }
 
@@ -3019,8 +3023,8 @@ H佐々貴
             .print-workers-grid {
               display: grid;
               grid-template-columns: repeat(3, 1fr);
-              gap: 1px 3px;
-              font-size: 8.5pt;
+              gap: 2px 3px;
+              font-size: 10.5pt;
             }
 
             .print-worker {
@@ -3030,7 +3034,8 @@ H佐々貴
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
-              line-height: 1.25;
+              line-height: 1.2;
+              font-weight: 600;
             }
 
             /* 会社休日マーカー(印刷プレビュー) */
@@ -3125,19 +3130,32 @@ H佐々貴
                 font-family: "Hiragino Sans", "Yu Gothic Medium", "Yu Gothic", "Meiryo", "MS Gothic", "Noto Sans CJK JP", sans-serif !important;
               }
 
-              /* 1ページに収めるため圧縮 */
-              .print-table { font-size: 7.5pt; }
-              .print-table th { font-size: 9pt; padding: 2px 3px; }
+              /* 印刷時の圧縮を控えめに(視認性優先) */
+              .print-table { font-size: 9pt; }
+              .print-table th { font-size: 10pt; padding: 2px 3px; }
+              .print-table .th-day { font-size: 12pt; }
+              .print-table .th-date { font-size: 10pt; }
+              .print-table .td-site { font-size: 10pt; }
               .print-table td { padding: 1px 3px; }
-              .print-workers-grid { font-size: 7pt; gap: 0 2px; }
-              .print-worker { padding: 0 1px; line-height: 1.15; }
+              .print-workers-grid { font-size: 9.5pt; gap: 1px 2px; }
+              .print-worker { padding: 0 1px; line-height: 1.15; font-weight: 600; }
               .print-page-header {
                 padding: 0 0 3px 0 !important;
                 margin-bottom: 3px !important;
               }
-              .print-title { font-size: 15pt; }
-              .print-period { font-size: 9pt; margin-top: 1px !important; }
-              .print-revision { font-size: 7pt; }
+              .print-title { font-size: 16pt; }
+              .print-period { font-size: 10pt; margin-top: 1px !important; }
+              .print-revision { font-size: 8pt; }
+              /* 罫線をさらに濃く */
+              .print-table th, .print-table td {
+                border-width: 1.5px !important;
+                border-color: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .print-table {
+                border-width: 2px !important;
+              }
 
               /* 黒見出しは色付きで印刷（ヘッダ視認性のため） */
               .print-table th {
