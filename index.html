@@ -1,0 +1,4431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dezoo</title>
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+      background: #f4f4f0;
+    }
+    #loading {
+      padding: 32px;
+      font-size: 14px;
+      color: #888;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"><div id="loading">アプリを読み込み中…（初回のみ少し時間がかかります）</div></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "lucide-react": "https://esm.sh/lucide-react@0.469.0?deps=react@18.3.1"
+    }
+  }
+  </script>
+
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+
+  <script type="text/babel" data-type="module" data-presets="react">
+    import React, { useState, useEffect, useRef } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { Plus, Trash2, Edit2, Download, Save, FolderOpen, Settings, X, Calendar, Users, Briefcase, Moon, Sun, ChevronLeft, ChevronRight, Copy, RotateCcw, FileUp } from 'lucide-react';
+
+    // ============================================================
+    // ★★★★★ 初期データ — このセクションだけ編集してください ★★★★★
+    // ============================================================
+    //
+    // 1行1件のCSV形式です。先頭が # の行はコメント、空行は無視されます。
+    // このアプリを初めて開く時(ブラウザにデータが何も無い時)だけ、
+    // ここの内容が自動で読み込まれます。
+    //
+    // 既にデータが入っている場合は、ここを変えても反映されません。
+    // 全部入れ直したい時は、ブラウザのサイトデータをクリアしてください。
+    // ============================================================
+
+    const INITIAL_DATA_CSV = {
+
+      // ----- 人員 (1行1名) -----
+      workers: `
+# 名前を1行ずつ書いてください
+Ｈ川島
+H鷹松
+H伊藤康
+H横倉
+H横倉竣
+H清原純
+Ｈ山口
+Ｈ下郡
+H龍崎澪
+H石川
+H村田
+Ｈ渡邊
+Ｈ中村太
+Ｈ石渡
+H小林
+Ｈ須藤
+Ｈ山本
+Ｈ渡辺温
+Ｈ山根敬
+S青木
+S濱崎
+S柿原
+P山根茂
+H佐藤
+H佐々木
+H山田
+H三浦
+H外崎
+H浮島
+H千葉
+S秦
+S増田
+S中村
+S村上
+S宮田
+H吉田
+S山下
+H銚沼
+H岩塚
+H佐々貴
+草建2+1
+`,
+
+      // ----- 現場 (現場名,種別)  種別: 昼 または 夜 / 空欄なら昼扱い -----
+      sites: `
+# 1列目=現場名、2列目=種別(昼/夜)。種別なしは昼扱い
+磯子急傾斜地（成蹊⇒花和）
+長沢街路整備工事（花和）
+武山駐屯地常用隊長舎（花和）
+海岸巡視委託
+横須賀米軍更生施設（花和）
+横須賀米軍法面（花和）
+鶴見ポンプ場（成蹊）
+下町浄化センター（花和）
+８工区佐野（花和）
+８工区佐野（花和）夜間,夜
+会社
+愛宕山（花和）常用
+鶴見ポンプ場（成蹊⇒花和）
+県雑(砂かき)
+`,
+
+      // ----- 会社休日 (YYYY-MM-DD または M/D) -----
+      holidays: `
+# 例: 2026-04-29 や 4/29 など。M/Dは今年扱い
+2025/9/20
+2025/9/21
+2025/9/23
+2025/9/27
+2025/9/28
+2025/10/4
+2025/10/5
+2025/10/11
+2025/10/12
+2025/10/13
+2025/10/19
+2025/10/25
+2025/10/26
+2025/11/1
+2025/11/2
+2025/11/3
+2025/11/9
+2025/11/15
+2025/11/16
+2025/11/22
+2025/11/23
+2025/11/24
+2025/11/30
+2025/12/6
+2025/12/7
+2025/12/13
+2025/12/14
+2025/12/20
+2025/12/21
+2025/12/27
+2025/12/28
+2025/12/29
+2025/12/30
+2025/12/31
+2025/4/26
+2026/1/1
+2026/1/2
+2026/1/3
+2026/1/4
+2026/1/10
+2026/1/11
+2026/1/12
+2026/1/18
+2026/1/24
+2026/1/25
+2026/1/31
+2026/2/1
+2026/2/7
+2026/2/8
+2026/2/11
+2026/2/15
+2026/2/21
+2026/2/22
+2026/2/23
+2026/3/1
+2026/3/7
+2026/3/8
+2026/3/14
+2026/3/15
+2026/3/20
+2026/3/22
+2026/3/28
+2026/3/29
+2026/4/4
+2026/4/5
+2026/4/11
+2026/4/12
+2026/4/18
+2026/4/19
+2026/4/25
+2026/4/26
+2026/4/29
+2026/4/30
+2026/5/1
+2026/5/2
+2026/5/3
+2026/5/4
+2026/5/5
+2026/5/6
+2026/5/9
+2026/5/10
+2026/5/16
+2026/5/17
+2026/5/23
+2026/5/24
+2026/5/30
+2026/5/31
+2026/6/6
+2026/6/7
+2026/6/13
+2026/6/14
+2026/6/20
+2026/6/21
+2026/6/27
+2026/6/28
+2026/7/4
+2026/7/5
+2026/7/11
+2026/7/12
+2026/7/18
+2026/7/19
+2026/7/20
+2026/7/26
+2026/8/1
+2026/8/2
+2026/8/8
+2026/8/9
+2026/8/10
+2026/8/11
+2026/8/12
+2026/8/13
+2026/8/14
+2026/8/15
+2026/8/16
+2026/8/22
+2026/8/23
+2026/8/29
+2026/8/30
+2026/9/5
+2026/9/6
+2026/9/12
+2026/9/13
+2026/9/19
+2026/9/20
+2026/9/21
+2026/9/22
+2026/9/23
+2026/9/27
+2026/10/3
+2026/10/4
+2026/10/10
+2026/10/11
+2026/10/12
+2026/10/18
+2026/10/24
+2026/10/25
+2026/10/31
+2026/11/1
+2026/11/3
+2026/11/8
+2026/11/14
+2026/11/15
+2026/11/21
+2026/11/22
+2026/11/23
+2026/11/29
+2026/12/5
+2026/12/6
+2026/12/12
+2026/12/13
+2026/12/19
+2026/12/20
+2026/12/26
+2026/12/27
+2026/10/17
+2026/12/29
+2026/12/30
+2026/12/31
+2027/1/1
+2027/1/2
+2027/1/3
+2027/1/9
+2027/1/10
+2027/1/11
+2027/1/17
+2027/1/23
+2027/1/24
+2027/1/30
+2027/1/31
+2027/2/6
+2027/2/7
+2027/2/11
+2027/2/14
+2027/2/20
+2027/2/21
+2027/2/23
+2027/2/28
+2027/3/6
+2027/3/7
+2027/3/13
+2027/3/14
+2027/3/20
+2027/3/21
+2027/3/22
+2027/3/28
+`,
+    };
+
+    // ============================================================
+    // 編集はここまで。以下はアプリ本体です(編集不要)
+    // ============================================================
+
+    // 初期データCSVの簡易パーサ
+    function parseInitialLines(csv) {
+      return (csv || '').split('\n')
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('#'));
+    }
+    function parseInitialDateStr(str) {
+      let m = str.match(/^(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?$/);
+      if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+      m = str.match(/^(\d{1,2})[/-](\d{1,2})$/);
+      if (m) {
+        const y = new Date().getFullYear();
+        return `${y}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+      }
+      return null;
+    }
+
+    // ===== 型定義のためのコメント =====
+    // Worker: { id, name } 例: { id: 'w1', name: 'H佐々木' }
+    // Site: { id, name, type } type: 'day' | 'night' | 'special'
+    // Assignment: { workerId, siteId, day, position } day: 0-6, position: 表示順
+    // 特殊状態: 'rest'(休), 'training'(講習) は site として扱う
+
+    const STORAGE_KEY = 'demen_app_data_v1';
+    const SETTINGS_KEY = 'demen_app_settings_v1';
+
+    const DAY_LABELS = ['月', '火', '水', '木', '金', '土', '日'];
+
+    // 人員のカラーパレット (チップ背景を変える。印刷には反映しない)
+    const COLOR_PALETTE = [
+      { id: 'red',    bg: '#ffd0d0', fg: '#7a1a1a', label: '赤' },
+      { id: 'orange', bg: '#ffdfb8', fg: '#7a3a00', label: '橙' },
+      { id: 'yellow', bg: '#fff2b3', fg: '#5a4400', label: '黄' },
+      { id: 'green',  bg: '#cceac0', fg: '#1f5a30', label: '緑' },
+      { id: 'teal',   bg: '#bfe5e0', fg: '#0e4a4a', label: '青緑' },
+      { id: 'blue',   bg: '#c8def8', fg: '#0a3a78', label: '青' },
+      { id: 'purple', bg: '#e1ccf5', fg: '#3a1a6a', label: '紫' },
+      { id: 'pink',   bg: '#ffd0e8', fg: '#7a1a55', label: '桃' },
+      { id: 'gray',   bg: '#dcdcdc', fg: '#333',    label: '灰' },
+    ];
+    const getColor = (id) => COLOR_PALETTE.find(p => p.id === id);
+
+    // 初期データ
+    const getInitialData = () => {
+      // INITIAL_DATA_CSVから人員・現場・会社休日を生成
+      const initWorkers = parseInitialLines(INITIAL_DATA_CSV.workers).map((name, idx) => ({
+        id: 'w_init_' + idx + '_' + Math.random().toString(36).slice(2, 5),
+        name,
+      }));
+
+      const parseInitSiteType = (s) => {
+        if (!s) return 'day';
+        const t = s.trim().toLowerCase();
+        if (t === '夜' || t === 'night' || t === 'n') return 'night';
+        return 'day';
+      };
+      const initSites = parseInitialLines(INITIAL_DATA_CSV.sites).map((line, idx) => {
+        const parts = line.split(/[,\t]/).map(s => s.trim());
+        return {
+          id: 's_init_' + idx + '_' + Math.random().toString(36).slice(2, 5),
+          name: parts[0],
+          type: parseInitSiteType(parts[1]),
+        };
+      }).filter(s => s.name);
+
+      const initHolidays = parseInitialLines(INITIAL_DATA_CSV.holidays)
+        .map((line, idx) => {
+          const first = line.split(/[,\t]/)[0].trim();
+          const date = parseInitialDateStr(first);
+          return date ? { id: 'h_init_' + idx + '_' + Math.random().toString(36).slice(2, 5), date } : null;
+        })
+        .filter(Boolean);
+
+      return {
+        weekStartDate: (() => {
+          const m = getMonday(new Date());
+          const yyyy = m.getFullYear();
+          const mm = String(m.getMonth() + 1).padStart(2, '0');
+          const dd = String(m.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        })(),
+        workers: initWorkers,
+        sites: [
+          ...initSites,
+          { id: 'training', name: '講習', type: 'special' },
+          { id: 'rest', name: '休み', type: 'special' },
+          { id: 'paid_leave', name: '有給休暇', type: 'special' },
+        ],
+        // 週ごとに保持: assignmentsByWeek[weekStartDate][day][siteId] = [workerId, ...]
+        assignmentsByWeek: {},
+        // 予定登録(休日・休暇・講習・必須人員)
+        schedules: { holidays: initHolidays, leaves: [], trainings: [], required: [] },
+      };
+    };
+
+    const emptyWeekAssignments = () => Array(7).fill(null).map(() => ({}));
+
+    // 旧データ構造を新構造へマイグレート
+    function migrateData(parsed) {
+      if (!parsed) return parsed;
+      // 旧 assignments → assignmentsByWeek へ
+      if (parsed.assignments && !parsed.assignmentsByWeek) {
+        parsed.assignmentsByWeek = { [parsed.weekStartDate]: parsed.assignments };
+        delete parsed.assignments;
+      }
+      if (!parsed.assignmentsByWeek) parsed.assignmentsByWeek = {};
+      // 現場種別 normal → day
+      if (parsed.sites) {
+        parsed.sites = parsed.sites.map(s => s.type === 'normal' ? { ...s, type: 'day' } : s);
+      }
+      // 特殊枠の追加: 有給休暇 が無ければ追加
+      if (parsed.sites && !parsed.sites.some(s => s.id === 'paid_leave')) {
+        parsed.sites = [...parsed.sites, { id: 'paid_leave', name: '有給休暇', type: 'special' }];
+      }
+      // 予定登録のスキーマ
+      if (!parsed.schedules) {
+        parsed.schedules = { holidays: [], leaves: [], trainings: [], required: [] };
+      } else {
+        if (!parsed.schedules.holidays) parsed.schedules.holidays = [];
+        if (!parsed.schedules.leaves) parsed.schedules.leaves = [];
+        if (!parsed.schedules.trainings) parsed.schedules.trainings = [];
+        if (!parsed.schedules.required) parsed.schedules.required = [];
+      }
+      // 「お休み」→「休み」リネーム
+      if (parsed.sites) {
+        parsed.sites = parsed.sites.map(s => (s.id === 'rest' && s.name === 'お休み') ? { ...s, name: '休み' } : s);
+      }
+      // 特殊枠の並び順を統一: 講習 → 休み → 有給休暇
+      if (parsed.sites) {
+        const nonSpecial = parsed.sites.filter(s => s.type !== 'special');
+        const orderIds = ['training', 'rest', 'paid_leave'];
+        const orderedSpecials = [];
+        orderIds.forEach(id => {
+          const found = parsed.sites.find(s => s.id === id && s.type === 'special');
+          if (found) orderedSpecials.push(found);
+        });
+        // 上記以外の特殊枠(将来追加された場合)も末尾に残す
+        const otherSpecials = parsed.sites.filter(s =>
+          s.type === 'special' && !orderIds.includes(s.id)
+        );
+        parsed.sites = [...nonSpecial, ...orderedSpecials, ...otherSpecials];
+      }
+      // weekStartDateが月曜でなければ月曜に正規化し、assignmentsByWeekキーも揃える
+      if (parsed.weekStartDate) {
+        const normalize = (dateStr) => {
+          const d = parseLocalDate(dateStr);
+          const m = getMonday(d);
+          return toLocalDateStr(m);
+        };
+        parsed.weekStartDate = normalize(parsed.weekStartDate);
+        if (parsed.assignmentsByWeek) {
+          const remapped = {};
+          Object.entries(parsed.assignmentsByWeek).forEach(([wk, val]) => {
+            const newKey = normalize(wk);
+            const hasContent = (arr) => (arr || []).some(da => Object.values(da).some(list => (list || []).length > 0));
+            if (remapped[newKey]) {
+              if (!hasContent(remapped[newKey]) && hasContent(val)) {
+                remapped[newKey] = val;
+              }
+            } else {
+              remapped[newKey] = val;
+            }
+          });
+          parsed.assignmentsByWeek = remapped;
+        }
+      }
+      return parsed;
+    }
+
+    function getMonday(d) {
+      d = new Date(d);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      return new Date(d.setDate(diff));
+    }
+
+    // YYYY-MM-DD 文字列をローカル日付として安全にパース
+    function parseLocalDate(str) {
+      const [y, m, d] = str.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    // ローカル日付を YYYY-MM-DD に
+    function toLocalDateStr(d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function formatDate(dateStr, dayOffset) {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + dayOffset);
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+
+    function formatFullDate(dateStr, dayOffset) {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + dayOffset);
+      const dows = ['日', '月', '火', '水', '木', '金', '土'];
+      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${dows[d.getDay()]})`;
+    }
+
+    function formatTodayJP() {
+      const d = new Date();
+      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    function DemenApp() {
+      const [data, setData] = useState(getInitialData());
+      const [showSettings, setShowSettings] = useState(false);
+      const [settingsTab, setSettingsTab] = useState('workers');
+      const [draggedWorker, setDraggedWorker] = useState(null);
+      const [tapMode, setTapMode] = useState(null); // { workerId, day }
+      const [selectedDay, setSelectedDay] = useState(0); // 人員ボードでフィルタする曜日 (0-6) または null=全週
+      const [editingWorker, setEditingWorker] = useState(null);
+      const [editingSite, setEditingSite] = useState(null);
+      const [newWorkerName, setNewWorkerName] = useState('');
+      const [newSiteName, setNewSiteName] = useState('');
+      const [newSiteType, setNewSiteType] = useState('day');
+      const [savedFiles, setSavedFiles] = useState([]);
+      const [showSaveDialog, setShowSaveDialog] = useState(false);
+      const [showLoadDialog, setShowLoadDialog] = useState(false);
+      const [saveName, setSaveName] = useState('');
+      const [showCsvDialog, setShowCsvDialog] = useState(null); // 'workers' | 'sites' | null
+      const [csvText, setCsvText] = useState('');
+      const [csvMode, setCsvMode] = useState('append'); // 'append' | 'replace'
+      const csvFileInputRef = useRef(null);
+      const [confirmDialog, setConfirmDialog] = useState(null); // { message, onConfirm }
+      const [toast, setToast] = useState(null); // 通知用
+      const [showPrintPreview, setShowPrintPreview] = useState(false);
+      const printRef = useRef(null);
+
+      // 並び替えD&D用 (workers/sites)
+      const [reorderDrag, setReorderDrag] = useState(null); // { kind: 'worker'|'site', id }
+      const [reorderHover, setReorderHover] = useState(null); // { kind, id, position: 'above'|'below' }
+      // 優先メンバー編集
+      const [preferredEditSite, setPreferredEditSite] = useState(null); // siteId or null
+      // アンドゥ履歴
+      const historyRef = useRef([]);
+      const isUndoingRef = useRef(false);
+      const HISTORY_LIMIT = 50;
+      // 予定登録モーダル
+      const [showScheduleModal, setShowScheduleModal] = useState(false);
+      const [scheduleTab, setScheduleTab] = useState('holidays');
+      const [scheduleForm, setScheduleForm] = useState({
+        date: '', workerId: '', workerIds: [], siteId: '', type: 'paid',
+      });
+
+      // ===== 選択・コピペ系 =====
+      const [selectedWorkers, setSelectedWorkers] = useState(new Set()); // "day::siteId::workerId"
+      const [activeCell, setActiveCell] = useState(null); // { day, siteId } ペースト基点
+      const [clipboard, setClipboard] = useState(null); // { mode, items: [{day, siteIdx, siteId, workerIds}] }
+      const [contextMenu, setContextMenu] = useState(null); // { x, y }
+      const [rectSelect, setRectSelect] = useState(null); // { startX, startY, currX, currY }
+      const gridRef = useRef(null);
+
+      // 起動時に最後のデータをロード
+      useEffect(() => {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = migrateData(JSON.parse(stored));
+            setData(parsed);
+          }
+          const settings = localStorage.getItem(SETTINGS_KEY);
+          if (settings) {
+            setSavedFiles(JSON.parse(settings).savedFiles || []);
+          }
+        } catch (e) {
+          console.error('Load error', e);
+        }
+      }, []);
+
+      // データ変更を自動保存
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+          console.error('Save error', e);
+        }
+      }, [data]);
+
+      // アンドゥ用に data の変更を履歴に積む
+      useEffect(() => {
+        if (isUndoingRef.current) {
+          isUndoingRef.current = false;
+          return;
+        }
+        historyRef.current.push(data);
+        if (historyRef.current.length > HISTORY_LIMIT) historyRef.current.shift();
+      }, [data]);
+
+      const undo = () => {
+        if (historyRef.current.length < 2) {
+          showToast('これ以上戻せません');
+          return;
+        }
+        historyRef.current.pop(); // 現在状態を捨てる
+        const prev = historyRef.current[historyRef.current.length - 1];
+        isUndoingRef.current = true;
+        setData(prev);
+        showToast('元に戻しました');
+      };
+
+      // PDF保存時のファイル名のため、週範囲をタイトルに反映
+      useEffect(() => {
+        try {
+          const start = parseLocalDate(data.weekStartDate);
+          const end = new Date(start);
+          end.setDate(end.getDate() + 6);
+          document.title = `Dezoo_工事出面表_${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日-${end.getMonth() + 1}月${end.getDate()}日`;
+        } catch (e) {
+          document.title = 'Dezoo';
+        }
+      }, [data.weekStartDate]);
+
+      // 確認ダイアログヘルパー
+      const askConfirm = (message, onConfirm) => {
+        setConfirmDialog({ message, onConfirm });
+      };
+
+      // トースト表示
+      const showToast = (message) => {
+        setToast(message);
+        setTimeout(() => setToast(null), 2500);
+      };
+
+      // ===== 週ごとアサインメント アクセスヘルパー =====
+      const currentAssignments = data.assignmentsByWeek?.[data.weekStartDate] || emptyWeekAssignments();
+
+      // 現在週のassignmentsだけを更新するヘルパー
+      const updateCurrentWeekAssignments = (transform) => {
+        setData(prev => {
+          const cur = prev.assignmentsByWeek?.[prev.weekStartDate] || emptyWeekAssignments();
+          const next = transform(cur, prev);
+          return {
+            ...prev,
+            assignmentsByWeek: { ...(prev.assignmentsByWeek || {}), [prev.weekStartDate]: next },
+          };
+        });
+      };
+
+      // ===== 配置操作 =====
+      const assignWorker = (workerId, day, siteId) => {
+        updateCurrentWeekAssignments((cur, prev) => {
+          const newAssignments = cur.map((dayAssign, i) => {
+            if (i !== day) return dayAssign;
+            const newDay = { ...dayAssign };
+            // 同日の他現場から削除(昼夜現場以外)
+            // 昼現場と夜現場は両立可能とする
+            const targetSite = prev.sites.find(s => s.id === siteId);
+            Object.keys(newDay).forEach(sid => {
+              const site = prev.sites.find(s => s.id === sid);
+              if (!site) return;
+              // 昼夜の組み合わせ以外は重複排除
+              const allowDual = (
+                (targetSite?.type === 'day' && site.type === 'night') ||
+                (targetSite?.type === 'night' && site.type === 'day')
+              );
+              if (!allowDual && sid !== siteId) {
+                newDay[sid] = (newDay[sid] || []).filter(wid => wid !== workerId);
+              }
+            });
+            // 対象現場に追加(重複排除)
+            const list = (newDay[siteId] || []).filter(wid => wid !== workerId);
+            list.push(workerId);
+            newDay[siteId] = list;
+            return newDay;
+          });
+          return newAssignments;
+        });
+      };
+
+      const removeWorker = (workerId, day, siteId) => {
+        updateCurrentWeekAssignments((cur) => {
+          return cur.map((dayAssign, i) => {
+            if (i !== day) return dayAssign;
+            const newDay = { ...dayAssign };
+            newDay[siteId] = (newDay[siteId] || []).filter(wid => wid !== workerId);
+            return newDay;
+          });
+        });
+      };
+
+      // 同日内で並べ替え
+      const reorderInCell = (day, siteId, fromIdx, toIdx) => {
+        updateCurrentWeekAssignments((cur) => {
+          const newAssignments = [...cur];
+          const list = [...(newAssignments[day][siteId] || [])];
+          const [moved] = list.splice(fromIdx, 1);
+          list.splice(toIdx, 0, moved);
+          newAssignments[day] = { ...newAssignments[day], [siteId]: list };
+          return newAssignments;
+        });
+      };
+
+      // 削除済を除いたアクティブ一覧
+      const activeWorkers = data.workers.filter(w => !w.deleted);
+      const activeSites = data.sites.filter(s => !s.deleted);
+
+      // ===== ワーカー管理 =====
+      const addWorker = () => {
+        if (!newWorkerName.trim()) return;
+        if (activeWorkers.length >= 100) {
+          showToast('人員は最大100名までです');
+          return;
+        }
+        const newWorker = {
+          id: 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          name: newWorkerName.trim(),
+        };
+        setData(prev => ({ ...prev, workers: [...prev.workers, newWorker] }));
+        setNewWorkerName('');
+      };
+
+      const updateWorker = (id, name) => {
+        setData(prev => ({
+          ...prev,
+          workers: prev.workers.map(w => w.id === id ? { ...w, name } : w),
+        }));
+        setEditingWorker(null);
+      };
+
+      const updateWorkerColor = (id, color) => {
+        setData(prev => ({
+          ...prev,
+          workers: prev.workers.map(w => w.id === id ? { ...w, color: color || null } : w),
+        }));
+      };
+
+      const updateWorkerAffiliation = (id, affiliation) => {
+        setData(prev => ({
+          ...prev,
+          workers: prev.workers.map(w => w.id === id ? { ...w, affiliation } : w),
+        }));
+      };
+
+      // ===== 並べ替え (workers / sites) =====
+      const reorderWorkers = (fromId, toId, position) => {
+        if (fromId === toId) return;
+        setData(prev => {
+          const arr = [...prev.workers];
+          const fromIdx = arr.findIndex(w => w.id === fromId);
+          if (fromIdx < 0) return prev;
+          const [moved] = arr.splice(fromIdx, 1);
+          let toIdx = arr.findIndex(w => w.id === toId);
+          if (toIdx < 0) return prev;
+          if (position === 'below') toIdx += 1;
+          arr.splice(toIdx, 0, moved);
+          return { ...prev, workers: arr };
+        });
+      };
+
+      const reorderSites = (fromId, toId, position) => {
+        if (fromId === toId) return;
+        setData(prev => {
+          // specialは末尾固定
+          const normal = prev.sites.filter(s => s.type !== 'special');
+          const specials = prev.sites.filter(s => s.type === 'special');
+          const fromIdx = normal.findIndex(s => s.id === fromId);
+          if (fromIdx < 0) return prev;
+          const [moved] = normal.splice(fromIdx, 1);
+          let toIdx = normal.findIndex(s => s.id === toId);
+          if (toIdx < 0) return prev;
+          if (position === 'below') toIdx += 1;
+          normal.splice(toIdx, 0, moved);
+          return { ...prev, sites: [...normal, ...specials] };
+        });
+      };
+
+      const sortWorkers = (key) => {
+        const colorOrder = COLOR_PALETTE.map(p => p.id);
+        setData(prev => {
+          const arr = [...prev.workers];
+          arr.sort((a, b) => {
+            if (key === 'name') return (a.name || '').localeCompare(b.name || '', 'ja');
+            if (key === 'affiliation') {
+              const ax = a.affiliation || '\uFFFF'; // 未設定を最後に
+              const bx = b.affiliation || '\uFFFF';
+              const c = ax.localeCompare(bx, 'ja');
+              if (c !== 0) return c;
+              return (a.name || '').localeCompare(b.name || '', 'ja');
+            }
+            if (key === 'color') {
+              const ai = a.color ? colorOrder.indexOf(a.color) : 999;
+              const bi = b.color ? colorOrder.indexOf(b.color) : 999;
+              if (ai !== bi) return ai - bi;
+              return (a.name || '').localeCompare(b.name || '', 'ja');
+            }
+            return 0;
+          });
+          return { ...prev, workers: arr };
+        });
+        showToast('並び替えました');
+      };
+
+      const deleteWorker = (id) => {
+        const w = data.workers.find(x => x.id === id);
+        askConfirm(`「${w?.name || ''}」を削除しますか？\n（パレットからは消えますが、過去の出面表には残ります）`, () => {
+          setData(prev => ({
+            ...prev,
+            workers: prev.workers.map(x => x.id === id ? { ...x, deleted: true } : x),
+          }));
+        });
+      };
+
+      // ===== 現場管理 =====
+      const addSite = () => {
+        if (!newSiteName.trim()) return;
+        const newSite = {
+          id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          name: newSiteName.trim(),
+          type: newSiteType,
+        };
+        setData(prev => ({ ...prev, sites: [...prev.sites, newSite] }));
+        setNewSiteName('');
+        setNewSiteType('day');
+      };
+
+      const updateSite = (id, name, type) => {
+        setData(prev => ({
+          ...prev,
+          sites: prev.sites.map(s => s.id === id ? { ...s, name, type } : s),
+        }));
+        setEditingSite(null);
+      };
+
+      const updateSitePreferred = (id, preferredWorkerIds) => {
+        setData(prev => ({
+          ...prev,
+          sites: prev.sites.map(s => s.id === id ? { ...s, preferredWorkerIds } : s),
+        }));
+      };
+
+      const deleteSite = (id) => {
+        if (id === 'rest' || id === 'training' || id === 'paid_leave') {
+          showToast('特殊枠（お休み・講習・有給休暇）は削除できません');
+          return;
+        }
+        const s = data.sites.find(x => x.id === id);
+        askConfirm(`「${s?.name || ''}」を削除しますか？\n（マスターからは消えますが、過去の出面表には残ります）`, () => {
+          setData(prev => ({
+            ...prev,
+            sites: prev.sites.map(x => x.id === id ? { ...x, deleted: true } : x),
+          }));
+        });
+      };
+
+      // ===== CSV取り込み =====
+      const parseCsvLine = (line) => {
+        // シンプルCSVパース(カンマ・タブ区切り、ダブルクォート対応)
+        const result = [];
+        let cur = '';
+        let inQuote = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (inQuote) {
+            if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+            else if (ch === '"') { inQuote = false; }
+            else { cur += ch; }
+          } else {
+            if (ch === '"') { inQuote = true; }
+            else if (ch === ',' || ch === '\t') { result.push(cur); cur = ''; }
+            else { cur += ch; }
+          }
+        }
+        result.push(cur);
+        return result.map(s => s.trim());
+      };
+
+      const parseCsv = (text) => {
+        return text
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(parseCsvLine);
+      };
+
+      const importWorkersCsv = () => {
+        if (!csvText.trim()) {
+          showToast('データを入力してください');
+          return;
+        }
+        const rows = parseCsv(csvText);
+        // ヘッダー行検出: 1列目が「名前」「氏名」などなら飛ばす
+        const headerKeywords = ['名前', '氏名', 'name', '人員'];
+        let startIdx = 0;
+        if (rows.length > 0 && headerKeywords.some(k => rows[0][0]?.toLowerCase().includes(k.toLowerCase()))) {
+          startIdx = 1;
+        }
+        const newNames = [];
+        for (let i = startIdx; i < rows.length; i++) {
+          const name = rows[i][0]?.trim();
+          if (name) newNames.push(name);
+        }
+        if (newNames.length === 0) {
+          showToast('読み込める名前がありませんでした');
+          return;
+        }
+
+        const newWorkers = newNames.map((name, idx) => ({
+          id: 'w_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2, 5),
+          name,
+        }));
+
+        let resultMsg = '';
+        setData(prev => {
+          let workers;
+          if (csvMode === 'replace') {
+            // 既存は論理削除して残す(過去出面表のため)、新規を追加
+            const tombstoned = prev.workers.map(w => ({ ...w, deleted: true }));
+            workers = [...tombstoned, ...newWorkers];
+            resultMsg = `${newNames.length}名で置換しました（過去データは保持）`;
+          } else {
+            const activeCount = prev.workers.filter(w => !w.deleted).length;
+            const combined = [...prev.workers, ...newWorkers];
+            const totalActive = activeCount + newWorkers.length;
+            if (totalActive > 100) {
+              const canAdd = Math.max(0, 100 - activeCount);
+              workers = [...prev.workers, ...newWorkers.slice(0, canAdd)];
+              resultMsg = `${canAdd}名のみ追加(100名上限)`;
+            } else {
+              workers = combined;
+              resultMsg = `${newNames.length}名を追加しました`;
+            }
+          }
+          return { ...prev, workers };
+        });
+
+        setShowCsvDialog(null);
+        setCsvText('');
+        showToast(resultMsg);
+      };
+
+      const importSitesCsv = () => {
+        if (!csvText.trim()) {
+          showToast('データを入力してください');
+          return;
+        }
+        const rows = parseCsv(csvText);
+        const headerKeywords = ['現場', 'name', '名称'];
+        let startIdx = 0;
+        if (rows.length > 0 && headerKeywords.some(k => rows[0][0]?.toLowerCase().includes(k.toLowerCase()))) {
+          startIdx = 1;
+        }
+        const parseType = (s) => {
+          if (!s) return 'day';
+          const t = s.trim().toLowerCase();
+          if (t === '夜' || t === 'night' || t === 'n') return 'night';
+          // 昼/通常/空欄 すべて day 扱い
+          return 'day';
+        };
+        const newSites = [];
+        for (let i = startIdx; i < rows.length; i++) {
+          const name = rows[i][0]?.trim();
+          if (!name) continue;
+          const type = parseType(rows[i][1]);
+          newSites.push({
+            id: 's_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 5),
+            name,
+            type,
+          });
+        }
+        if (newSites.length === 0) {
+          showToast('読み込める現場名がありませんでした');
+          return;
+        }
+
+        let resultMsg = '';
+        setData(prev => {
+          let sites;
+          const specials = prev.sites.filter(s => s.type === 'special');
+          const nonSpecial = prev.sites.filter(s => s.type !== 'special');
+          if (csvMode === 'replace') {
+            // 既存の通常現場は論理削除して残す(過去出面表のため)、新規を追加。特殊枠はそのまま
+            const tombstoned = nonSpecial.map(s => ({ ...s, deleted: true }));
+            sites = [...tombstoned, ...newSites, ...specials];
+            resultMsg = `${newSites.length}件で置換しました（過去データは保持）`;
+          } else {
+            resultMsg = `${newSites.length}件を追加しました`;
+            sites = [...nonSpecial, ...newSites, ...specials];
+          }
+          return { ...prev, sites };
+        });
+
+        setShowCsvDialog(null);
+        setCsvText('');
+        showToast(resultMsg);
+      };
+
+      const handleCsvFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setCsvText(ev.target.result);
+        };
+        reader.readAsText(file, 'UTF-8');
+        e.target.value = ''; // 同じファイルを再選択できるようにリセット
+      };
+
+      // ===== ファイル管理 =====
+      const saveAs = () => {
+        if (!saveName.trim()) return;
+        const file = {
+          name: saveName.trim(),
+          savedAt: new Date().toISOString(),
+          data: data,
+        };
+        const newFiles = [...savedFiles.filter(f => f.name !== file.name), file];
+        setSavedFiles(newFiles);
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ savedFiles: newFiles }));
+        setShowSaveDialog(false);
+        setSaveName('');
+      };
+
+      // 保存ボタン押下: 該当週の最新ver.の次番号で自動保存
+      const quickSave = () => {
+        const wk = data.weekStartDate;
+        const versions = savedFiles
+          .map(f => {
+            const m = f.name.match(/^(.+)_ver\.(\d+)$/);
+            if (!m) return null;
+            return { wk: m[1], n: Number(m[2]) };
+          })
+          .filter(x => x && x.wk === wk);
+        const next = versions.length > 0 ? Math.max(...versions.map(v => v.n)) + 1 : 1;
+        const name = `${wk}_ver.${next}`;
+        const file = {
+          name,
+          savedAt: new Date().toISOString(),
+          data: data,
+        };
+        const newFiles = [...savedFiles, file];
+        setSavedFiles(newFiles);
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ savedFiles: newFiles }));
+        showToast(`${name} として保存しました`);
+      };
+
+      const loadFile = (file) => {
+        setData(migrateData({ ...file.data }));
+        setShowLoadDialog(false);
+      };
+
+      const deleteFile = (name) => {
+        askConfirm(`「${name}」を削除しますか？`, () => {
+          const newFiles = savedFiles.filter(f => f.name !== name);
+          setSavedFiles(newFiles);
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify({ savedFiles: newFiles }));
+        });
+      };
+
+      // 前週取り込み: 現在週の前週(月曜)の配置を現在週へコピー
+      const importPreviousWeek = () => {
+        const d = parseLocalDate(data.weekStartDate);
+        d.setDate(d.getDate() - 7);
+        const prevWk = toLocalDateStr(d);
+        const prevAssign = data.assignmentsByWeek?.[prevWk];
+        if (!prevAssign) {
+          showToast('前週のデータがありません');
+          return;
+        }
+        const hasContent = currentAssignments.some(da => Object.values(da).some(list => (list || []).length > 0));
+        const doImport = () => {
+          updateCurrentWeekAssignments(() => prevAssign.map(da => {
+            const nd = {};
+            Object.keys(da).forEach(sid => { nd[sid] = [...(da[sid] || [])]; });
+            return nd;
+          }));
+          showToast('前週の配置を取り込みました');
+        };
+        if (hasContent) {
+          askConfirm('現在の週の配置を前週の内容で上書きしますか？', doImport);
+        } else {
+          doImport();
+        }
+      };
+
+      const clearWeek = () => {
+        askConfirm('今週の配置を全てクリアしますか？', () => {
+          updateCurrentWeekAssignments(() => emptyWeekAssignments());
+        });
+      };
+
+      // 週移動 (データはそのまま、表示週だけ切替)
+      const shiftWeek = (delta) => {
+        const d = parseLocalDate(data.weekStartDate);
+        d.setDate(d.getDate() + 7 * delta);
+        setData(prev => ({ ...prev, weekStartDate: toLocalDateStr(d) }));
+      };
+
+      // ===== PDF出力 =====
+      const exportPDF = () => {
+        setShowPrintPreview(true);
+      };
+
+      const getWeekRangeFull = () => {
+        const start = new Date(data.weekStartDate);
+        const end = new Date(data.weekStartDate);
+        end.setDate(end.getDate() + 6);
+        return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日 〜 ${end.getFullYear()}年${end.getMonth() + 1}月${end.getDate()}日`;
+      };
+
+      // 配置済みワーカーIDのリスト(全日通して)
+      const getAssignedWorkerIds = (day) => {
+        const ids = new Set();
+        Object.values(currentAssignments[day] || {}).forEach(list => {
+          (list || []).forEach(wid => ids.add(wid));
+        });
+        return ids;
+      };
+
+      // 表示順: アクティブな昼夜順 → アクティブな特殊 → 削除済でも当週に配置がある現場
+      const getOrderedSites = () => {
+        const dayNight = activeSites.filter(s => s.type === 'day' || s.type === 'night');
+        const special = activeSites.filter(s => s.type === 'special');
+        // 削除済だが現週に配置がある現場(過去出面表表示のため)
+        const referenced = data.sites.filter(s => {
+          if (!s.deleted) return false;
+          return currentAssignments.some(da => (da[s.id] || []).length > 0);
+        });
+        return [...dayNight, ...special, ...referenced];
+      };
+
+      const orderedSites = getOrderedSites();
+      const assignedSiteIds = new Set();
+      currentAssignments.forEach(da => {
+        Object.keys(da).forEach(sid => {
+          if ((da[sid] || []).length > 0) assignedSiteIds.add(sid);
+        });
+      });
+
+      // 表示する現場(配置がある or 全現場表示モード)
+      const displaySites = orderedSites;
+
+      const getWorkerName = (id) => data.workers.find(w => w.id === id)?.name || '?';
+
+      // ===== 人員選択 =====
+      const workerKey = (day, siteId, workerId) => `${day}::${siteId}::${workerId}`;
+      const parseWorkerKey = (key) => {
+        const parts = key.split('::');
+        return { day: Number(parts[0]), siteId: parts[1], workerId: parts[2] };
+      };
+
+      const getCellWorkerKeys = (day, siteId) => {
+        const ids = currentAssignments[day]?.[siteId] || [];
+        return ids.map(wid => workerKey(day, siteId, wid));
+      };
+
+      // 単一人員クリック
+      const clickWorker = (day, siteId, workerId, e) => {
+        const key = workerKey(day, siteId, workerId);
+        if (e && e.shiftKey) {
+          // 追加のみ（外さない）
+          setSelectedWorkers(prev => {
+            const next = new Set(prev);
+            next.add(key);
+            return next;
+          });
+        } else if (e && (e.ctrlKey || e.metaKey)) {
+          // トグル
+          setSelectedWorkers(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+          });
+        } else {
+          // 単独選択
+          setSelectedWorkers(new Set([key]));
+        }
+        setActiveCell({ day, siteId });
+      };
+
+      // セル空き領域クリック → セル全員選択
+      const clickCell = (day, siteId, e) => {
+        const cellKeys = getCellWorkerKeys(day, siteId);
+        if (e && e.shiftKey) {
+          // セル全員を追加のみ
+          setSelectedWorkers(prev => {
+            const next = new Set(prev);
+            cellKeys.forEach(k => next.add(k));
+            return next;
+          });
+        } else if (e && (e.ctrlKey || e.metaKey)) {
+          // セル全員をトグル（全選択 or 全解除）
+          setSelectedWorkers(prev => {
+            const next = new Set(prev);
+            const allIn = cellKeys.length > 0 && cellKeys.every(k => next.has(k));
+            if (allIn) cellKeys.forEach(k => next.delete(k));
+            else cellKeys.forEach(k => next.add(k));
+            return next;
+          });
+        } else {
+          setSelectedWorkers(new Set(cellKeys));
+        }
+        setActiveCell({ day, siteId });
+      };
+
+      // ===== コピー / カット / ペースト =====
+      // 選択中の人員を (day, siteId) ごとにグループ化
+      const groupSelectedByCell = () => {
+        const groups = new Map(); // key=`${day}::${siteId}` → { day, siteId, siteIdx, workerIds }
+        selectedWorkers.forEach(key => {
+          const { day, siteId, workerId } = parseWorkerKey(key);
+          const gKey = `${day}::${siteId}`;
+          if (!groups.has(gKey)) {
+            const siteIdx = displaySites.findIndex(s => s.id === siteId);
+            if (siteIdx < 0) return;
+            groups.set(gKey, { day, siteId, siteIdx, workerIds: [] });
+          }
+          groups.get(gKey).workerIds.push(workerId);
+        });
+        return Array.from(groups.values());
+      };
+
+      const buildClipboard = (mode) => {
+        if (selectedWorkers.size === 0) {
+          showToast('人員を選択してください');
+          return;
+        }
+        const items = groupSelectedByCell();
+        if (items.length === 0) return;
+        setClipboard({ mode, items });
+        showToast(mode === 'cut' ? `${selectedWorkers.size}名をカット` : `${selectedWorkers.size}名をコピー`);
+      };
+
+      const pasteClipboard = () => {
+        if (!clipboard) {
+          showToast('クリップボードが空です');
+          return;
+        }
+        if (!activeCell) {
+          showToast('貼り付け先のセルをクリックしてください');
+          return;
+        }
+        const targetSite = displaySites.find(s => s.id === activeCell.siteId);
+        if (!targetSite) return;
+        const tDay = activeCell.day;
+        // 選択していた人員を全員ターゲットセルに集約（重複排除）
+        const allWorkerIds = [];
+        clipboard.items.forEach(it => {
+          it.workerIds.forEach(wid => {
+            if (!allWorkerIds.includes(wid)) allWorkerIds.push(wid);
+          });
+        });
+
+        const newSelection = new Set();
+        updateCurrentWeekAssignments((cur, prev) => {
+          const newAssignments = cur.map(da => ({ ...da }));
+          // Cut元から削除（同一週内のCutのみ）
+          if (clipboard.mode === 'cut') {
+            clipboard.items.forEach(it => {
+              newAssignments[it.day] = { ...newAssignments[it.day] };
+              const list = newAssignments[it.day][it.siteId] || [];
+              newAssignments[it.day][it.siteId] = list.filter(wid => !it.workerIds.includes(wid));
+            });
+          }
+
+          // ターゲットセルに追加(重複排除)
+          const existing = (newAssignments[tDay][targetSite.id] || []).filter(wid => !allWorkerIds.includes(wid));
+          const merged = [...existing, ...allWorkerIds];
+
+          // 同日他セルから(昼夜以外)除外
+          Object.keys(newAssignments[tDay]).forEach(sid => {
+            if (sid === targetSite.id) return;
+            const otherSite = prev.sites.find(s => s.id === sid);
+            if (!otherSite) return;
+            const allowDual = (
+              (targetSite.type === 'day' && otherSite.type === 'night') ||
+              (targetSite.type === 'night' && otherSite.type === 'day')
+            );
+            if (!allowDual) {
+              newAssignments[tDay][sid] = (newAssignments[tDay][sid] || []).filter(wid => !allWorkerIds.includes(wid));
+            }
+          });
+
+          newAssignments[tDay] = { ...newAssignments[tDay], [targetSite.id]: merged };
+          allWorkerIds.forEach(wid => newSelection.add(workerKey(tDay, targetSite.id, wid)));
+          return newAssignments;
+        });
+
+        if (clipboard.mode === 'cut') setClipboard(null);
+        setSelectedWorkers(newSelection);
+        showToast('ペーストしました');
+      };
+
+      // ===== 予定登録 ヘルパー =====
+      const getWeekKeyForDate = (dateStr) => toLocalDateStr(getMonday(parseLocalDate(dateStr)));
+      const getDayIndexInWeek = (dateStr, weekKey) => {
+        const d = parseLocalDate(dateStr);
+        const m = parseLocalDate(weekKey);
+        return Math.round((d - m) / 86400000);
+      };
+      const isCompanyHoliday = (dateStr) =>
+        (data.schedules?.holidays || []).some(h => h.date === dateStr);
+
+      // 任意日付のセルを更新(該当週のassignmentsByWeekを直接書き換え)
+      const updateAssignmentsForDate = (dateStr, dayUpdater) => {
+        const weekKey = getWeekKeyForDate(dateStr);
+        const dayIdx = getDayIndexInWeek(dateStr, weekKey);
+        if (dayIdx < 0 || dayIdx > 6) return;
+        setData(prev => {
+          const week = prev.assignmentsByWeek?.[weekKey] || emptyWeekAssignments();
+          const newWeek = [...week];
+          newWeek[dayIdx] = dayUpdater(week[dayIdx] || {}, prev);
+          return {
+            ...prev,
+            assignmentsByWeek: { ...(prev.assignmentsByWeek || {}), [weekKey]: newWeek },
+          };
+        });
+      };
+
+      // ===== 予定登録 アクション =====
+      // CSV取り込み(会社休日)
+      const importHolidaysCsv = () => {
+        if (!csvText.trim()) { showToast('データを入力してください'); return; }
+        const lines = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(l => l.trim()).filter(Boolean);
+        const tryParseDate = (s) => {
+          let m = s.match(/^(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?$/);
+          if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+          m = s.match(/^(\d{1,2})[/-](\d{1,2})$/);
+          if (m) {
+            const y = new Date().getFullYear();
+            return `${y}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+          }
+          return null;
+        };
+        const dates = [];
+        const skipped = [];
+        lines.forEach(line => {
+          // 1列目だけ見る(カンマ区切り対応)
+          const first = line.split(/[,\t]/)[0].trim();
+          if (!first || /^(date|日付|休日)$/i.test(first)) return; // ヘッダ
+          const d = tryParseDate(first);
+          if (d) dates.push(d);
+          else skipped.push(first);
+        });
+        if (dates.length === 0) { showToast('読み込める日付がありませんでした'); return; }
+
+        setData(prev => {
+          const existing = csvMode === 'replace' ? [] : (prev.schedules?.holidays || []);
+          const existingDates = new Set(existing.map(h => h.date));
+          const additions = [];
+          dates.forEach(d => {
+            if (existingDates.has(d)) return;
+            existingDates.add(d);
+            additions.push({ id: 'h_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5), date: d });
+          });
+          return {
+            ...prev,
+            schedules: {
+              ...(prev.schedules || {}),
+              holidays: [...existing, ...additions],
+            },
+          };
+        });
+        setShowCsvDialog(null);
+        setCsvText('');
+        let msg = `${dates.length}件取り込みました`;
+        if (skipped.length > 0) msg += ` (不正${skipped.length}件スキップ)`;
+        if (csvMode === 'replace') msg += '(置換)';
+        showToast(msg);
+      };
+
+      const addHoliday = (dateStr) => {
+        if (!dateStr) { showToast('日付を選択してください'); return; }
+        if ((data.schedules?.holidays || []).some(h => h.date === dateStr)) {
+          showToast('既に登録済みです');
+          return;
+        }
+        setData(prev => ({
+          ...prev,
+          schedules: {
+            ...(prev.schedules || {}),
+            holidays: [...(prev.schedules?.holidays || []), { id: 'h_' + Date.now(), date: dateStr }],
+          },
+        }));
+        showToast('会社休日を登録しました');
+      };
+      const deleteSchedule = (kind, id) => {
+        setData(prev => ({
+          ...prev,
+          schedules: {
+            ...(prev.schedules || {}),
+            [kind]: (prev.schedules?.[kind] || []).filter(x => x.id !== id),
+          },
+        }));
+      };
+
+      const addLeave = (dateStr, workerId, type) => {
+        if (!dateStr || !workerId) { showToast('日付・人員を選択してください'); return; }
+        const targetSiteId = type === 'paid' ? 'paid_leave' : 'rest';
+        setData(prev => ({
+          ...prev,
+          schedules: {
+            ...(prev.schedules || {}),
+            leaves: [...(prev.schedules?.leaves || []), { id: 'l_' + Date.now(), date: dateStr, workerId, type }],
+          },
+        }));
+        // 該当人員を該当日の対象セルへ移動(同日の他セルからは外す)
+        updateAssignmentsForDate(dateStr, (cur) => {
+          const nd = { ...cur };
+          Object.keys(nd).forEach(sid => {
+            if (sid === targetSiteId) return;
+            nd[sid] = (nd[sid] || []).filter(wid => wid !== workerId);
+          });
+          const existing = (nd[targetSiteId] || []).filter(wid => wid !== workerId);
+          nd[targetSiteId] = [...existing, workerId];
+          return nd;
+        });
+        showToast('休暇を登録しました');
+      };
+
+      const addTraining = (dateStr, workerIds) => {
+        if (!dateStr || !workerIds || workerIds.length === 0) { showToast('日付・人員を選択してください'); return; }
+        setData(prev => ({
+          ...prev,
+          schedules: {
+            ...(prev.schedules || {}),
+            trainings: [...(prev.schedules?.trainings || []), { id: 't_' + Date.now(), date: dateStr, workerIds: [...workerIds] }],
+          },
+        }));
+        updateAssignmentsForDate(dateStr, (cur) => {
+          const nd = { ...cur };
+          Object.keys(nd).forEach(sid => {
+            if (sid === 'training') return;
+            nd[sid] = (nd[sid] || []).filter(wid => !workerIds.includes(wid));
+          });
+          const existing = (nd['training'] || []).filter(wid => !workerIds.includes(wid));
+          nd['training'] = [...existing, ...workerIds];
+          return nd;
+        });
+        showToast('講習予定を登録しました');
+      };
+
+      const addRequired = (dateStr, siteId, workerIds) => {
+        if (!dateStr || !siteId || !workerIds || workerIds.length === 0) {
+          showToast('日付・現場・人員を選択してください'); return;
+        }
+        setData(prev => ({
+          ...prev,
+          schedules: {
+            ...(prev.schedules || {}),
+            required: [...(prev.schedules?.required || []), { id: 'r_' + Date.now(), date: dateStr, siteId, workerIds: [...workerIds] }],
+          },
+        }));
+        updateAssignmentsForDate(dateStr, (cur, prev) => {
+          const targetSite = prev.sites.find(s => s.id === siteId);
+          if (!targetSite) return cur;
+          const nd = { ...cur };
+          // 同日他セル(昼夜以外)から該当人員を外す
+          Object.keys(nd).forEach(sid => {
+            if (sid === siteId) return;
+            const otherSite = prev.sites.find(s => s.id === sid);
+            if (!otherSite) return;
+            const allowDual = (
+              (targetSite.type === 'day' && otherSite.type === 'night') ||
+              (targetSite.type === 'night' && otherSite.type === 'day')
+            );
+            if (!allowDual) {
+              nd[sid] = (nd[sid] || []).filter(wid => !workerIds.includes(wid));
+            }
+          });
+          const existing = (nd[siteId] || []).filter(wid => !workerIds.includes(wid));
+          nd[siteId] = [...existing, ...workerIds];
+          return nd;
+        });
+        showToast('必須人員を登録しました');
+      };
+
+      // ===== 曜日メニュー アクション =====
+      const clearDay = (day) => {
+        askConfirm(`${DAY_LABELS[day]}曜日の配置をすべてクリアしますか？`, () => {
+          updateCurrentWeekAssignments((cur) => {
+            const next = [...cur];
+            next[day] = {};
+            return next;
+          });
+          showToast(`${DAY_LABELS[day]}曜日をクリアしました`);
+        });
+      };
+
+      // 曜日メニュー: 別の日に貼り付け
+      const pasteDay = (targetDay) => {
+        if (!clipboard) { showToast('クリップボードが空です'); return; }
+        const newSelection = new Set();
+        updateCurrentWeekAssignments((cur, prev) => {
+          const newAssignments = cur.map(da => ({ ...da }));
+          newAssignments[targetDay] = { ...newAssignments[targetDay] };
+          clipboard.items.forEach(it => {
+            const tSite = prev.sites.find(s => s.id === it.siteId);
+            if (!tSite) return;
+            const existing = (newAssignments[targetDay][it.siteId] || []).filter(wid => !it.workerIds.includes(wid));
+            const merged = [...existing, ...it.workerIds];
+            // 同日他セルから(昼夜以外)除外
+            Object.keys(newAssignments[targetDay]).forEach(sid => {
+              if (sid === it.siteId) return;
+              const otherSite = prev.sites.find(s => s.id === sid);
+              if (!otherSite) return;
+              const allowDual = (
+                (tSite.type === 'day' && otherSite.type === 'night') ||
+                (tSite.type === 'night' && otherSite.type === 'day')
+              );
+              if (!allowDual) {
+                newAssignments[targetDay][sid] = (newAssignments[targetDay][sid] || []).filter(wid => !it.workerIds.includes(wid));
+              }
+            });
+            newAssignments[targetDay][it.siteId] = merged;
+            it.workerIds.forEach(wid => newSelection.add(workerKey(targetDay, it.siteId, wid)));
+          });
+          return newAssignments;
+        });
+        setSelectedWorkers(newSelection);
+        showToast(`${DAY_LABELS[targetDay]}曜日にペーストしました`);
+      };
+
+      const copyDay = (day) => {
+        const items = [];
+        displaySites.forEach((site) => {
+          const siteIdx = displaySites.findIndex(s => s.id === site.id);
+          const ids = currentAssignments[day]?.[site.id] || [];
+          if (ids.length === 0) return;
+          items.push({ day, siteIdx, siteId: site.id, workerIds: [...ids] });
+        });
+        if (items.length === 0) {
+          showToast(`${DAY_LABELS[day]}曜日は配置がありません`);
+          return;
+        }
+        setClipboard({ mode: 'copy', items });
+        const total = items.reduce((s, it) => s + it.workerIds.length, 0);
+        showToast(`${DAY_LABELS[day]}曜日(${total}名)をコピー`);
+      };
+
+      // 自動配置: ①優先メンバー → ②直近踏襲 → ③均等分配
+      const autoAssignDay = (day) => {
+        const newDayAssign = { ...(currentAssignments[day] || {}) };
+        // すでに当日配置済みの人員
+        const placed = new Set();
+        Object.values(newDayAssign).forEach(list => (list || []).forEach(wid => placed.add(wid)));
+
+        const pastWeeks = Object.keys(data.assignmentsByWeek || {})
+          .filter(wk => wk !== data.weekStartDate)
+          .sort((a, b) => b.localeCompare(a));
+
+        const targetSites = displaySites.filter(s => s.type !== 'special' && !s.deleted);
+
+        // ① 各現場の優先メンバーを最優先で投入
+        targetSites.forEach(site => {
+          const pref = (site.preferredWorkerIds || []).filter(wid => {
+            const w = data.workers.find(x => x.id === wid);
+            if (!w || w.deleted) return false;
+            if (placed.has(wid)) return false;
+            return true;
+          });
+          if (pref.length > 0) {
+            newDayAssign[site.id] = [...(newDayAssign[site.id] || []), ...pref];
+            pref.forEach(wid => placed.add(wid));
+          }
+        });
+
+        // ② 直近の現場メンバー踏襲
+        //    優先順: 同週の前日(近い順) → 過去週の同曜日(新しい順)
+        const filterValid = (ids) => (ids || []).filter(wid => {
+          const w = data.workers.find(x => x.id === wid);
+          if (!w || w.deleted) return false;
+          if (placed.has(wid)) return false;
+          return true;
+        });
+
+        targetSites.forEach(site => {
+          if ((newDayAssign[site.id] || []).length > 0) return;
+
+          // (a) 同週の前日: D-1, D-2, ... 0
+          let valid = [];
+          for (let prevDay = day - 1; prevDay >= 0; prevDay--) {
+            const ids = currentAssignments[prevDay]?.[site.id];
+            if (ids && ids.length > 0) {
+              const v = filterValid(ids);
+              if (v.length > 0) { valid = v; break; }
+            }
+          }
+
+          // (b) 見つからなければ過去週の同曜日
+          if (valid.length === 0) {
+            for (const wk of pastWeeks) {
+              const ids = data.assignmentsByWeek[wk]?.[day]?.[site.id];
+              if (ids && ids.length > 0) {
+                const v = filterValid(ids);
+                if (v.length > 0) { valid = v; break; }
+              }
+            }
+          }
+
+          if (valid.length > 0) {
+            newDayAssign[site.id] = valid;
+            valid.forEach(wid => placed.add(wid));
+          }
+        });
+
+        // ③ 未配置メンバーを既存配置数の少ない現場へ均等分配
+        const unassigned = activeWorkers.filter(w => !placed.has(w.id)).map(w => w.id);
+        if (unassigned.length > 0 && targetSites.length > 0) {
+          const buckets = targetSites.map(s => ({
+            id: s.id,
+            count: (newDayAssign[s.id] || []).length,
+          }));
+          unassigned.forEach(wid => {
+            buckets.sort((a, b) => a.count - b.count);
+            const bucket = buckets[0];
+            newDayAssign[bucket.id] = [...(newDayAssign[bucket.id] || []), wid];
+            bucket.count++;
+          });
+        }
+
+        updateCurrentWeekAssignments((cur) => {
+          const next = [...cur];
+          next[day] = newDayAssign;
+          return next;
+        });
+        showToast(`${DAY_LABELS[day]}曜日に自動配置しました`);
+      };
+
+      const clearSelectedWorkers = () => {
+        if (selectedWorkers.size === 0) return;
+        const groups = groupSelectedByCell();
+        updateCurrentWeekAssignments((cur) => {
+          const newAssignments = cur.map(da => ({ ...da }));
+          groups.forEach(g => {
+            if (newAssignments[g.day]) {
+              newAssignments[g.day] = { ...newAssignments[g.day] };
+              const list = newAssignments[g.day][g.siteId] || [];
+              newAssignments[g.day][g.siteId] = list.filter(wid => !g.workerIds.includes(wid));
+            }
+          });
+          return newAssignments;
+        });
+        setSelectedWorkers(new Set());
+        showToast('削除しました');
+      };
+
+      // ===== キーボードショートカット =====
+      useEffect(() => {
+        const onKey = (e) => {
+          // 入力中は無視
+          const tag = (e.target?.tagName || '').toUpperCase();
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+          if (e.target?.isContentEditable) return;
+
+          const ctrl = e.ctrlKey || e.metaKey;
+          if (ctrl && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault();
+            undo();
+          } else if (ctrl && e.key === 'c') {
+            e.preventDefault();
+            buildClipboard('copy');
+          } else if (ctrl && e.key === 'x') {
+            e.preventDefault();
+            buildClipboard('cut');
+          } else if (ctrl && e.key === 'v') {
+            e.preventDefault();
+            pasteClipboard();
+          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (selectedWorkers.size > 0) {
+              e.preventDefault();
+              clearSelectedWorkers();
+            }
+          } else if (e.key === 'Escape') {
+            setSelectedWorkers(new Set());
+            setActiveCell(null);
+            setContextMenu(null);
+            setRectSelect(null);
+          }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+      }, [selectedWorkers, clipboard, activeCell, data, displaySites]);
+
+      // ===== 矩形選択：ドキュメントレベルのpointermove/up =====
+      useEffect(() => {
+        if (!rectSelect) return;
+        const startX = rectSelect.startX;
+        const startY = rectSelect.startY;
+        const onMove = (e) => {
+          setRectSelect({ startX, startY, currX: e.clientX, currY: e.clientY });
+          const x1 = Math.min(startX, e.clientX);
+          const x2 = Math.max(startX, e.clientX);
+          const y1 = Math.min(startY, e.clientY);
+          const y2 = Math.max(startY, e.clientY);
+          if (!gridRef.current) return;
+          // 人員チップを矩形で判定
+          const chips = gridRef.current.querySelectorAll('[data-worker-key]');
+          const next = new Set();
+          chips.forEach(el => {
+            const r = el.getBoundingClientRect();
+            if (r.right < x1 || r.left > x2 || r.bottom < y1 || r.top > y2) return;
+            next.add(el.dataset.workerKey);
+          });
+          setSelectedWorkers(next);
+        };
+        const onUp = () => {
+          setRectSelect(null);
+        };
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        return () => {
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+        };
+      }, [rectSelect?.startX, rectSelect?.startY]);
+
+      // 右クリックメニューを閉じる
+      useEffect(() => {
+        if (!contextMenu) return;
+        const close = () => setContextMenu(null);
+        document.addEventListener('click', close);
+        document.addEventListener('scroll', close, true);
+        return () => {
+          document.removeEventListener('click', close);
+          document.removeEventListener('scroll', close, true);
+        };
+      }, [contextMenu]);
+
+      return (
+        <>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap');
+
+            * {
+              box-sizing: border-box;
+              -webkit-tap-highlight-color: transparent;
+            }
+
+            .demen-root {
+              font-family: 'Noto Sans JP', sans-serif;
+              background: #f4f4f0;
+              min-height: 100vh;
+              color: #1a1a1a;
+            }
+
+            .demen-header {
+              background: #1a1a1a;
+              color: #fff;
+              padding: 12px 16px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 12px;
+              flex-wrap: wrap;
+              border-bottom: 4px solid #ff6b35;
+            }
+
+            .demen-title {
+              font-weight: 900;
+              font-size: 18px;
+              letter-spacing: 0.05em;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+
+            .demen-title-mark {
+              background: #ff6b35;
+              color: #1a1a1a;
+              padding: 2px 8px;
+              font-family: 'Roboto Mono', monospace;
+              font-size: 12px;
+              font-weight: 700;
+            }
+
+            .demen-toolbar {
+              display: flex;
+              gap: 6px;
+              flex-wrap: wrap;
+              align-items: center;
+            }
+
+            .btn {
+              background: #fff;
+              color: #1a1a1a;
+              border: 2px solid #1a1a1a;
+              padding: 7px 12px;
+              font-size: 13px;
+              font-weight: 700;
+              cursor: pointer;
+              display: inline-flex;
+              align-items: center;
+              gap: 5px;
+              font-family: inherit;
+              transition: all 0.1s;
+            }
+
+            .btn:hover {
+              background: #ff6b35;
+              color: #fff;
+            }
+
+            .btn:active {
+              transform: translate(1px, 1px);
+            }
+
+            .btn-primary {
+              background: #ff6b35;
+              color: #fff;
+              border-color: #ff6b35;
+            }
+
+            .btn-primary:hover {
+              background: #1a1a1a;
+              border-color: #1a1a1a;
+            }
+
+            .btn-ghost {
+              background: transparent;
+              color: #fff;
+              border-color: #fff;
+            }
+
+            .btn-ghost:hover {
+              background: #fff;
+              color: #1a1a1a;
+            }
+
+            .btn-danger {
+              background: #fff;
+              color: #c0392b;
+              border-color: #c0392b;
+            }
+
+            .btn-danger:hover {
+              background: #c0392b;
+              color: #fff;
+            }
+
+            .btn-sm {
+              padding: 4px 8px;
+              font-size: 11px;
+            }
+
+            .demen-week-bar {
+              background: #fff;
+              padding: 10px 16px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 12px;
+              border-bottom: 1px solid #ddd;
+              flex-wrap: wrap;
+            }
+
+            .week-display {
+              font-family: 'Roboto Mono', monospace;
+              font-weight: 700;
+              font-size: 15px;
+            }
+
+            .demen-main {
+              padding: 10px;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            }
+
+            /* ワーカープール = 横帯 */
+            .worker-pool {
+              background: #fff;
+              border: 2px solid #1a1a1a;
+              padding: 8px 10px;
+              max-height: 180px;
+              overflow-y: auto;
+            }
+
+            .pool-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding-bottom: 6px;
+              border-bottom: 2px solid #1a1a1a;
+              margin-bottom: 6px;
+            }
+
+            .pool-title {
+              font-weight: 900;
+              font-size: 12px;
+              letter-spacing: 0.08em;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+
+            .pool-hint {
+              font-weight: 400;
+              font-size: 10px;
+              color: #888;
+              letter-spacing: 0;
+            }
+
+            .pool-count {
+              font-family: 'Roboto Mono', monospace;
+              font-size: 10px;
+              background: #1a1a1a;
+              color: #fff;
+              padding: 1px 5px;
+            }
+
+            .worker-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+              gap: 3px;
+            }
+
+            .worker-chip {
+              background: #f4f4f0;
+              border: 1.5px solid #1a1a1a;
+              padding: 4px 4px;
+              font-size: 11px;
+              font-weight: 700;
+              cursor: grab;
+              text-align: center;
+              user-select: none;
+              touch-action: none;
+              position: relative;
+              line-height: 1.2;
+              letter-spacing: -0.02em;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            @media (min-width: 1024px) {
+              .demen-main {
+                padding: 12px;
+              }
+            }
+
+            /* (worker-pool styles defined above) */
+
+            .worker-chip:active {
+              cursor: grabbing;
+            }
+
+            .worker-chip.tap-mode {
+              background: #ff6b35;
+              color: #fff;
+              border-color: #ff6b35;
+              animation: pulse 1s ease-in-out infinite;
+            }
+
+            .worker-chip.assigned {
+              opacity: 0.32;
+              background: #e8e8e0;
+              border-style: dashed;
+              border-color: #999;
+              color: #555;
+            }
+
+            .worker-chip.assigned:hover {
+              opacity: 0.7;
+            }
+
+            .assigned-check {
+              position: absolute;
+              top: 1px;
+              right: 3px;
+              font-size: 9px;
+              color: #2d8a47;
+              font-weight: 900;
+            }
+
+            /* アクティブ曜日のハイライト（強調版） */
+            .grid-header.active-day {
+              background: #ff6b35 !important;
+              color: #fff !important;
+              position: relative;
+              box-shadow: 0 4px 0 #ff6b35;
+            }
+            .grid-header.active-day.sat,
+            .grid-header.active-day.sun {
+              background: #ff6b35 !important;
+            }
+
+            .grid-day-remaining {
+              display: block;
+              font-size: 9px;
+              font-family: 'Roboto Mono', monospace;
+              font-weight: 500;
+              opacity: 0.8;
+              margin-top: 1px;
+              letter-spacing: 0.02em;
+            }
+
+            .day-cell.active-day-col {
+              background: #fff0d6;
+              box-shadow: inset 2px 0 0 #ff6b35, inset -2px 0 0 #ff6b35;
+            }
+            .day-cell.active-day-col:hover {
+              background: #ffe5b8;
+            }
+
+            /* 「曜日 日付 編集中」マーカー（パレット側に表示） */
+            .active-day-marker {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              background: #ff6b35;
+              color: #fff;
+              padding: 3px 6px 3px 8px;
+              font-weight: 900;
+              letter-spacing: 0.04em;
+              line-height: 1;
+              border: 2px solid #ff6b35;
+              margin: 0 8px 0 4px;
+            }
+            .active-day-marker-day {
+              font-size: 14px;
+            }
+            .active-day-marker-date {
+              font-family: 'Roboto Mono', monospace;
+              font-size: 12px;
+              font-weight: 700;
+            }
+            .active-day-marker-label {
+              background: #fff;
+              color: #ff6b35;
+              padding: 2px 6px;
+              font-size: 10px;
+              font-weight: 900;
+              letter-spacing: 0.05em;
+            }
+
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+            }
+
+            /* グリッド */
+            .schedule-wrapper {
+              background: #fff;
+              border: 2px solid #1a1a1a;
+              overflow-x: auto;
+            }
+
+            .schedule-grid {
+              display: grid;
+              grid-template-columns: 110px repeat(7, minmax(120px, 1fr));
+              min-width: 100%;
+            }
+
+            .grid-cell {
+              border-right: 1px solid #ddd;
+              border-bottom: 1px solid #ddd;
+              padding: 4px;
+              min-height: 60px;
+              background: #fff;
+            }
+
+            .grid-cell:last-child {
+              border-right: none;
+            }
+
+            .grid-header {
+              background: #1a1a1a;
+              color: #fff;
+              font-weight: 900;
+              padding: 8px 6px;
+              text-align: center;
+              font-size: 12px;
+              position: sticky;
+              top: 0;
+              z-index: 5;
+            }
+
+            .grid-header.sat { background: #2c5aa0; }
+            .grid-header.sun { background: #c0392b; }
+
+            .grid-day-num {
+              font-family: 'Roboto Mono', monospace;
+              font-size: 14px;
+              display: block;
+              margin-top: 2px;
+            }
+
+            .site-cell {
+              background: #f4f4f0;
+              font-weight: 700;
+              font-size: 12px;
+              padding: 6px;
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              border-right: 2px solid #1a1a1a;
+              position: sticky;
+              left: 0;
+              z-index: 4;
+            }
+
+            .site-cell.day-type {
+              background: #fff4e6;
+              border-left: 4px solid #f39c12;
+            }
+            .site-cell.night-type {
+              background: #e8e6f0;
+              border-left: 4px solid #5d4e8a;
+            }
+            .site-cell.special-type {
+              background: #f0f0f0;
+              border-left: 4px solid #888;
+              color: #555;
+            }
+
+            .site-name {
+              flex: 1;
+              line-height: 1.2;
+              word-break: break-word;
+            }
+
+            .site-icon {
+              flex-shrink: 0;
+            }
+
+            .day-cell {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+              align-items: stretch;
+              cursor: pointer;
+              min-height: 50px;
+            }
+
+            .day-cell.drop-active {
+              background: #fff4e6;
+              outline: 2px dashed #ff6b35;
+              outline-offset: -2px;
+            }
+
+            .day-cell.tap-target {
+              background: #fff4e6;
+              outline: 2px solid #ff6b35;
+              outline-offset: -2px;
+            }
+
+            .day-cell.cell-active {
+              outline: 2px solid #1a1a1a;
+              outline-offset: -2px;
+              z-index: 2;
+            }
+
+            /* 人員チップ：選択中・非選択中の視覚 */
+            .placed-worker.worker-selected {
+              outline: 2px solid #ff6b35;
+              outline-offset: 1px;
+              box-shadow: 0 0 0 1px #fff, 0 2px 6px rgba(255,107,53,0.5);
+              z-index: 3;
+              position: relative;
+              filter: brightness(1.15);
+            }
+            .placed-worker.worker-faded {
+              opacity: 0.35;
+              filter: grayscale(0.4);
+            }
+            .placed-worker.worker-faded:hover {
+              opacity: 0.7;
+            }
+
+            .rect-select-overlay {
+              position: fixed;
+              background: rgba(255, 107, 53, 0.15);
+              border: 1.5px dashed #ff6b35;
+              pointer-events: none;
+              z-index: 50;
+            }
+
+            /* ドラッグ中のゴースト（複数人移動時のカウントバッジ付き） */
+            .drag-ghost {
+              position: absolute;
+              top: -9999px;
+              left: -9999px;
+              background: #1a1a1a;
+              color: #fff;
+              padding: 6px 10px;
+              font-family: 'Noto Sans JP', sans-serif;
+              font-weight: 700;
+              font-size: 12px;
+              border: 2px solid #ff6b35;
+              box-shadow: 4px 4px 0 rgba(255,107,53,0.4);
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              white-space: nowrap;
+            }
+            .drag-ghost-name {
+              max-width: 140px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .drag-ghost-count {
+              background: #ff6b35;
+              color: #fff;
+              font-family: 'Roboto Mono', monospace;
+              font-weight: 900;
+              font-size: 14px;
+              padding: 2px 8px;
+              min-width: 24px;
+              text-align: center;
+              line-height: 1;
+            }
+
+            .context-menu {
+              position: fixed;
+              background: #fff;
+              border: 2px solid #1a1a1a;
+              z-index: 300;
+              min-width: 200px;
+              padding: 4px 0;
+              box-shadow: 4px 4px 0 #1a1a1a;
+              user-select: none;
+            }
+            .context-menu button {
+              display: block;
+              width: 100%;
+              text-align: left;
+              background: none;
+              border: none;
+              padding: 8px 14px;
+              font-family: inherit;
+              font-size: 13px;
+              font-weight: 600;
+              cursor: pointer;
+              color: #1a1a1a;
+            }
+            .context-menu button:hover:not(:disabled) {
+              background: #ff6b35;
+              color: #fff;
+            }
+            .context-menu button:hover:not(:disabled) .menu-shortcut {
+              color: rgba(255,255,255,0.8);
+            }
+            .context-menu button:disabled {
+              color: #bbb;
+              cursor: not-allowed;
+            }
+            .context-menu .menu-divider {
+              height: 1px;
+              background: #ddd;
+              margin: 2px 0;
+            }
+            .context-menu .menu-shortcut {
+              float: right;
+              color: #888;
+              font-size: 11px;
+              font-family: 'Roboto Mono', monospace;
+              margin-left: 16px;
+            }
+            .context-menu .menu-section-label {
+              padding: 6px 14px 4px;
+              font-size: 10px;
+              font-weight: 700;
+              color: #fff;
+              background: #1a1a1a;
+              letter-spacing: 0.08em;
+              border-bottom: 2px solid #ff6b35;
+            }
+            .context-menu .menu-count {
+              font-size: 11px;
+              color: #ff6b35;
+              font-family: 'Roboto Mono', monospace;
+              font-weight: 700;
+              margin-left: 4px;
+            }
+            .context-menu button:hover:not(:disabled) .menu-count {
+              color: #fff;
+            }
+
+            .placed-worker {
+              background: #f4f4f0;
+              color: #1a1a1a;
+              border: 1.5px solid #1a1a1a;
+              padding: 2px 4px;
+              font-size: 11px;
+              font-weight: 700;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              line-height: 1.15;
+              cursor: grab;
+              user-select: none;
+              touch-action: none;
+              gap: 2px;
+              min-width: 0;
+              min-height: 20px;
+              overflow: hidden;
+              letter-spacing: -0.02em;
+            }
+
+            .placed-worker.dense {
+              padding: 0 3px;
+              font-size: 9px;
+              letter-spacing: -0.04em;
+              gap: 1px;
+              border-width: 1px;
+            }
+            .placed-worker.dense .placed-remove {
+              font-size: 10px;
+            }
+
+            /* 現場種別アクセントは出面表の現場行(左)に集約。チップ側には付けない */
+
+            .placed-name {
+              flex: 1;
+              min-width: 0;
+              word-break: break-all;
+              overflow-wrap: break-word;
+              line-height: 1.15;
+            }
+
+            .placed-remove {
+              background: none;
+              border: none;
+              color: inherit;
+              cursor: pointer;
+              padding: 0;
+              opacity: 0.7;
+              font-size: 14px;
+              line-height: 1;
+            }
+
+            .placed-remove:hover { opacity: 1; }
+
+            /* モーダル */
+            .modal-backdrop {
+              position: fixed;
+              inset: 0;
+              background: rgba(0,0,0,0.6);
+              z-index: 100;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 16px;
+            }
+
+            .modal {
+              background: #fff;
+              border: 2px solid #1a1a1a;
+              width: 100%;
+              max-width: 600px;
+              max-height: 90vh;
+              overflow-y: auto;
+            }
+
+            .modal-header {
+              background: #1a1a1a;
+              color: #fff;
+              padding: 12px 16px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-weight: 900;
+            }
+
+            .modal-body {
+              padding: 16px;
+            }
+
+            .modal-tabs {
+              display: flex;
+              border-bottom: 2px solid #1a1a1a;
+              margin-bottom: 12px;
+            }
+
+            .modal-tab {
+              flex: 1;
+              padding: 10px;
+              background: #f4f4f0;
+              border: none;
+              border-right: 1px solid #ddd;
+              cursor: pointer;
+              font-weight: 700;
+              font-family: inherit;
+              font-size: 13px;
+            }
+
+            .modal-tab:last-child { border-right: none; }
+
+            .modal-tab.active {
+              background: #ff6b35;
+              color: #fff;
+            }
+
+            .input {
+              width: 100%;
+              padding: 8px 10px;
+              border: 2px solid #1a1a1a;
+              font-family: inherit;
+              font-size: 14px;
+            }
+
+            .input:focus {
+              outline: none;
+              background: #fff4e6;
+            }
+
+            .form-row {
+              display: flex;
+              gap: 6px;
+              margin-bottom: 12px;
+            }
+
+            .form-row .input { flex: 1; }
+
+            .item-list {
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+            }
+
+            .item-row {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              padding: 6px 8px;
+              background: #f4f4f0;
+              border: 1px solid #ddd;
+            }
+
+            .item-name {
+              flex: 1;
+              font-weight: 500;
+            }
+
+            .item-badge {
+              font-size: 10px;
+              font-weight: 700;
+              padding: 2px 6px;
+              background: #1a1a1a;
+              color: #fff;
+            }
+            .item-badge.day-badge { background: #f39c12; }
+            .item-badge.night-badge { background: #5d4e8a; }
+            .item-badge.special-badge { background: #888; }
+
+            /* 人員行（カラー・所属・並び替え対応版） */
+            .worker-row {
+              display: grid;
+              grid-template-columns: 18px 1fr 110px auto auto;
+              align-items: center;
+              gap: 6px;
+              padding: 5px 6px;
+              background: #f4f4f0;
+              border: 1px solid #ddd;
+              position: relative;
+            }
+            .worker-name-cell {
+              font-weight: 600;
+              cursor: text;
+              padding: 4px 6px;
+              border-bottom: 1px dashed transparent;
+            }
+            .worker-name-cell:hover {
+              border-bottom-color: #ff6b35;
+            }
+            .affiliation-input {
+              padding: 4px 6px !important;
+              font-size: 12px !important;
+              border-width: 1px !important;
+            }
+            .color-palette {
+              display: flex;
+              gap: 2px;
+              align-items: center;
+            }
+            .color-swatch {
+              width: 18px;
+              height: 18px;
+              border: 1.5px solid #999;
+              padding: 0;
+              cursor: pointer;
+              background: #fff;
+              font-size: 10px;
+              line-height: 1;
+              color: #888;
+              font-family: inherit;
+            }
+            .color-swatch:hover {
+              transform: scale(1.15);
+            }
+            .color-swatch.active {
+              border-width: 2.5px;
+              box-shadow: 0 0 0 1px #fff inset;
+            }
+
+            /* 会社休日 - 列ヘッダ表示 */
+            .grid-header.holiday-day {
+              background: #6b6b6b !important;
+            }
+            .grid-header.holiday-day.active-day {
+              background: #ff6b35 !important;
+            }
+            .grid-day-holiday {
+              display: block;
+              font-size: 9px;
+              font-weight: 900;
+              background: #fff;
+              color: #444;
+              padding: 1px 4px;
+              margin-top: 2px;
+              letter-spacing: 0.05em;
+            }
+
+            /* 会社休日 - セル(グレー網掛け) */
+            .day-cell.holiday-cell {
+              background: repeating-linear-gradient(
+                45deg,
+                #e0e0e0,
+                #e0e0e0 4px,
+                #f0f0f0 4px,
+                #f0f0f0 10px
+              ) !important;
+              position: relative;
+            }
+            .day-cell.holiday-cell::before {
+              content: '休';
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              font-size: 14px;
+              font-weight: 900;
+              color: rgba(80, 80, 80, 0.3);
+              pointer-events: none;
+              letter-spacing: 0.1em;
+            }
+            .day-cell.holiday-cell .placed-worker {
+              position: relative;
+              z-index: 1;
+            }
+            .day-cell.holiday-cell.active-day-col {
+              background: repeating-linear-gradient(
+                45deg,
+                #ffe5cc,
+                #ffe5cc 4px,
+                #fff0d6 4px,
+                #fff0d6 10px
+              ) !important;
+            }
+
+            /* 予定登録モーダル一覧 */
+            .schedule-list {
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+              max-height: 320px;
+              overflow-y: auto;
+              border: 1px solid #ddd;
+              padding: 4px;
+              background: #fafafa;
+            }
+            .schedule-row {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              padding: 6px 8px;
+              background: #fff;
+              border: 1px solid #ddd;
+              font-size: 12px;
+            }
+            .schedule-date {
+              font-family: 'Roboto Mono', monospace;
+              font-weight: 700;
+              flex: 0 0 auto;
+            }
+            .schedule-tag {
+              font-size: 10px;
+              font-weight: 900;
+              padding: 2px 6px;
+              color: #fff;
+              letter-spacing: 0.05em;
+              flex: 0 0 auto;
+            }
+            .schedule-tag.holiday-tag { background: #555; }
+            .schedule-tag.paid-tag { background: #2c5aa0; }
+            .schedule-tag.rest-tag { background: #888; }
+            .schedule-tag.training-tag { background: #5d4e8a; }
+            .schedule-tag.required-tag { background: #c0392b; }
+            .schedule-name {
+              flex: 1;
+              font-weight: 500;
+              line-height: 1.4;
+              word-break: break-all;
+            }
+
+            /* 優先メンバー選択ピッカー */
+            .preferred-pick-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+              gap: 4px;
+              max-height: 50vh;
+              overflow-y: auto;
+              padding: 4px;
+              background: #f4f4f0;
+              border: 1px solid #ddd;
+            }
+            .preferred-pick-chip {
+              padding: 6px 6px;
+              font-size: 12px;
+              font-weight: 700;
+              font-family: inherit;
+              background: #fff;
+              color: #1a1a1a;
+              border: 1.5px solid #1a1a1a;
+              cursor: pointer;
+              text-align: center;
+              line-height: 1.2;
+              letter-spacing: -0.02em;
+              user-select: none;
+            }
+            .preferred-pick-chip:hover {
+              transform: translate(-1px, -1px);
+              box-shadow: 2px 2px 0 #ff6b35;
+            }
+            .preferred-pick-chip.on {
+              box-shadow: 0 0 0 2px #ff6b35 inset;
+            }
+
+            /* 並び替えD&Dガイドライン */
+            .reorder-list { position: relative; }
+            .reorder-handle {
+              cursor: grab;
+              user-select: none;
+              color: #999;
+              font-weight: 900;
+              text-align: center;
+              line-height: 1;
+              letter-spacing: -1px;
+            }
+            .reorder-handle:active { cursor: grabbing; }
+            .reorder-dragging {
+              opacity: 0.4;
+            }
+            .reorder-above::before,
+            .reorder-below::after {
+              content: '';
+              position: absolute;
+              left: 0;
+              right: 0;
+              height: 0;
+              border-top: 2px dashed #ff6b35;
+              z-index: 5;
+              pointer-events: none;
+            }
+            .reorder-above::before { top: -1px; }
+            .reorder-below::after { bottom: -1px; }
+
+            .empty-state {
+              text-align: center;
+              padding: 24px;
+              color: #888;
+              font-size: 13px;
+            }
+
+            select.input {
+              background: #fff;
+            }
+
+            .csv-row {
+              margin-bottom: 10px;
+              padding: 8px;
+              background: #f4f4f0;
+              border-left: 3px solid #ff6b35;
+            }
+
+            .csv-help {
+              background: #fff4e6;
+              border: 1px dashed #ff6b35;
+              padding: 10px;
+              font-size: 12px;
+              line-height: 1.6;
+              margin-bottom: 12px;
+            }
+
+            .csv-help code {
+              background: #fff;
+              padding: 1px 4px;
+              font-family: 'Roboto Mono', monospace;
+              font-size: 11px;
+              border: 1px solid #ddd;
+              display: inline-block;
+              margin: 1px 0;
+            }
+
+            .csv-mode-row {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 6px;
+              margin-bottom: 12px;
+            }
+
+            .csv-mode {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              padding: 8px 10px;
+              border: 2px solid #ccc;
+              background: #f4f4f0;
+              cursor: pointer;
+              font-size: 12px;
+            }
+
+            .csv-mode.active {
+              border-color: #ff6b35;
+              background: #fff4e6;
+            }
+
+            .csv-mode input[type="radio"] {
+              margin: 0;
+            }
+
+            .csv-mode small {
+              color: #666;
+              font-size: 10px;
+            }
+
+            .csv-file-row {
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-bottom: 8px;
+              flex-wrap: wrap;
+            }
+
+            .csv-textarea {
+              font-family: 'Roboto Mono', monospace;
+              font-size: 12px;
+              line-height: 1.5;
+              resize: vertical;
+              min-height: 140px;
+            }
+
+            /* トースト */
+            .toast {
+              position: fixed;
+              bottom: 24px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: #1a1a1a;
+              color: #fff;
+              padding: 10px 20px;
+              font-weight: 700;
+              font-size: 13px;
+              z-index: 200;
+              border-left: 4px solid #ff6b35;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              animation: toastIn 0.2s ease-out;
+            }
+
+            @keyframes toastIn {
+              from { opacity: 0; transform: translate(-50%, 10px); }
+              to { opacity: 1; transform: translate(-50%, 0); }
+            }
+
+            .file-row {
+              padding: 10px;
+              border: 1px solid #ddd;
+              margin-bottom: 6px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 8px;
+            }
+
+            .file-info {
+              flex: 1;
+              min-width: 0;
+            }
+
+            .file-name {
+              font-weight: 700;
+              margin-bottom: 2px;
+            }
+
+            .file-date {
+              font-size: 11px;
+              color: #888;
+              font-family: 'Roboto Mono', monospace;
+            }
+
+            .toolbar-divider {
+              width: 1px;
+              height: 20px;
+              background: rgba(255,255,255,0.3);
+              margin: 0 4px;
+            }
+
+            .help-banner {
+              background: #fff4e6;
+              border: 1px dashed #ff6b35;
+              padding: 8px 12px;
+              font-size: 12px;
+              margin: 0 12px;
+            }
+
+            /* PDF出力用 */
+            /* ===== 印刷プレビューモーダル ===== */
+            .print-preview-modal {
+              position: fixed;
+              inset: 0;
+              background: #555;
+              z-index: 150;
+              overflow: auto;
+              display: flex;
+              flex-direction: column;
+            }
+
+            .print-preview-bar {
+              position: sticky;
+              top: 0;
+              background: #1a1a1a;
+              color: #fff;
+              padding: 10px 16px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              z-index: 5;
+              border-bottom: 4px solid #ff6b35;
+            }
+
+            .print-preview-title {
+              font-weight: 900;
+              font-size: 14px;
+              letter-spacing: 0.05em;
+            }
+
+            /* A3横ページ風のプレビュー */
+            .print-page {
+              background: #fff;
+              color: #000;
+              margin: 16px auto;
+              padding: 10mm 12mm;
+              width: 420mm;
+              min-height: 297mm;
+              box-sizing: border-box;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+              font-family: "Hiragino Sans", "Yu Gothic Medium", "Yu Gothic", "Meiryo", "MS Gothic", "Noto Sans CJK JP", sans-serif;
+            }
+
+            .print-page-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              padding-bottom: 6px;
+              margin-bottom: 8px;
+              border-bottom: 2px solid #000;
+            }
+
+            .print-title {
+              font-size: 22pt;
+              font-weight: 900;
+              letter-spacing: 0.05em;
+            }
+
+            .print-period {
+              font-size: 13pt;
+              font-weight: 700;
+              margin-top: 4px;
+            }
+
+            .print-revision {
+              font-size: 9pt;
+              color: #444;
+              white-space: nowrap;
+            }
+
+            .print-table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+              font-size: 9pt;
+            }
+
+            .print-table th, .print-table td {
+              border: 1px solid #000;
+              padding: 3px 4px;
+              vertical-align: top;
+              background: #fff;
+            }
+
+            .print-table th {
+              background: #000 !important;
+              color: #fff !important;
+              font-weight: 900;
+              font-size: 10pt;
+              padding: 4px 4px;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            .print-table .th-site {
+              width: 100px;
+            }
+
+            .print-table .th-day {
+              font-size: 10pt;
+              font-weight: 900;
+            }
+            .print-table .th-date {
+              font-size: 8pt;
+              font-weight: 500;
+              opacity: 0.9;
+            }
+
+            .print-table .td-site {
+              font-weight: 700;
+              font-size: 9pt;
+              word-break: break-all;
+            }
+
+            .print-table .td-workers {
+              padding: 2px 3px;
+            }
+
+            .print-workers-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 1px 3px;
+              font-size: 8.5pt;
+            }
+
+            .print-worker {
+              color: #000;
+              background: transparent;
+              padding: 0 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              line-height: 1.25;
+            }
+
+            /* 会社休日マーカー(印刷プレビュー) */
+            .print-table .th-holiday-label {
+              font-size: 7.5pt;
+              font-weight: 700;
+              background: #fff;
+              color: #000;
+              padding: 1px 4px;
+              margin-top: 2px;
+              border: 1px solid #000;
+              display: inline-block;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .print-table td.td-holiday {
+              background: repeating-linear-gradient(
+                45deg,
+                #d8d8d8,
+                #d8d8d8 4px,
+                #f0f0f0 4px,
+                #f0f0f0 10px
+              );
+              position: relative;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            /* 「休」文字は列ヘッダのバッジに集約。各セル内には出さない */
+            .print-table td.td-holiday .print-worker {
+              background: rgba(255,255,255,0.85);
+            }
+
+            /* ===== 印刷時 ===== */
+            @media print {
+              @page {
+                size: A3 landscape;
+                margin: 6mm;
+              }
+
+              html, body {
+                background: #fff !important;
+                font-family: "Hiragino Sans", "Yu Gothic Medium", "Yu Gothic", "Meiryo", "MS Gothic", "Noto Sans CJK JP", sans-serif !important;
+              }
+
+              /* 通常UIは全部隠す。印刷プレビューのページだけ出す */
+              .demen-header,
+              .demen-week-bar,
+              .help-banner,
+              .demen-main,
+              .modal-backdrop,
+              .toast,
+              .context-menu,
+              .rect-select-overlay,
+              .print-preview-bar {
+                display: none !important;
+              }
+
+              .demen-root {
+                background: #fff !important;
+              }
+
+              /* プレビューモーダルを印刷時はそのまま用紙に */
+              .print-preview-modal {
+                position: static !important;
+                background: #fff !important;
+                overflow: visible !important;
+              }
+
+              .print-page {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                min-height: 0 !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+                font-family: "Hiragino Sans", "Yu Gothic Medium", "Yu Gothic", "Meiryo", "MS Gothic", "Noto Sans CJK JP", sans-serif !important;
+              }
+
+              /* 1ページに収めるため少し圧縮 */
+              .print-table { font-size: 8pt; }
+              .print-table th { font-size: 9pt; padding: 3px 3px; }
+              .print-table td { padding: 2px 3px; }
+              .print-workers-grid { font-size: 7.5pt; gap: 0 2px; }
+              .print-worker { padding: 0 1px; line-height: 1.2; }
+              .print-title { font-size: 18pt; }
+              .print-period { font-size: 11pt; }
+              .print-revision { font-size: 8pt; }
+
+              /* 黒見出しは色付きで印刷（ヘッダ視認性のため） */
+              .print-table th {
+                background: #000 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+            }
+          `}</style>
+
+          <div className="demen-root">
+            {/* ヘッダー */}
+            <div className="demen-header no-print">
+              <div className="demen-title">
+                <span className="demen-title-mark">Dezoo</span>
+                工事出面表
+              </div>
+              <div className="demen-toolbar">
+                <button className="btn btn-ghost" onClick={() => setShowScheduleModal(true)}>
+                  <Calendar size={14} /> 予定登録
+                </button>
+                <button className="btn btn-ghost" onClick={() => setShowSettings(true)}>
+                  <Settings size={14} /> 人員・現場
+                </button>
+                <div className="toolbar-divider" />
+                <button className="btn btn-ghost" onClick={quickSave}>
+                  <Save size={14} /> 保存
+                </button>
+                <button className="btn btn-ghost" onClick={() => setShowLoadDialog(true)}>
+                  <FolderOpen size={14} /> 読込
+                </button>
+                <div className="toolbar-divider" />
+                <button className="btn btn-primary" onClick={exportPDF}>
+                  <Download size={14} /> PDF出力
+                </button>
+              </div>
+            </div>
+
+            {/* 週バー */}
+            <div className="demen-week-bar no-print">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="btn btn-sm" onClick={() => shiftWeek(-1)}>
+                  <ChevronLeft size={14} />
+                </button>
+                <input
+                  type="date"
+                  className="input"
+                  style={{ width: 160 }}
+                  value={data.weekStartDate}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const picked = parseLocalDate(e.target.value);
+                    const monday = getMonday(picked);
+                    setData(prev => ({ ...prev, weekStartDate: toLocalDateStr(monday) }));
+                  }}
+                />
+                <button className="btn btn-sm" onClick={() => shiftWeek(1)}>
+                  <ChevronRight size={14} />
+                </button>
+                <span className="week-display">
+                  {formatDate(data.weekStartDate, 0)} 〜 {formatDate(data.weekStartDate, 6)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn btn-sm" onClick={importPreviousWeek}>
+                  <Copy size={12} /> 前週取り込み
+                </button>
+                <button className="btn btn-sm btn-danger" onClick={clearWeek}>
+                  <RotateCcw size={12} /> クリア
+                </button>
+              </div>
+            </div>
+
+            {tapMode && (
+              <div className="help-banner no-print">
+                👉 「<strong>{getWorkerName(tapMode.workerId)}</strong>」を配置する現場をタップしてください。
+                <button className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => setTapMode(null)}>キャンセル</button>
+              </div>
+            )}
+
+            <div className="demen-main">
+              {/* ワーカープール */}
+              <div className="worker-pool no-print">
+                <div className="pool-header">
+                  <div className="pool-title">
+                    人員 <span className="pool-count">{activeWorkers.length}/100</span>
+                    {selectedDay !== null && (
+                      <span className="active-day-marker">
+                        <span className="active-day-marker-day">{DAY_LABELS[selectedDay]}</span>
+                        <span className="active-day-marker-date">{formatDate(data.weekStartDate, selectedDay)}</span>
+                        <span className="active-day-marker-label">編集中</span>
+                      </span>
+                    )}
+                    <span className="pool-hint">ドラッグ または タップ→配置先タップ</span>
+                  </div>
+                </div>
+                {activeWorkers.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '12px' }}>
+                    右上「人員・現場」から追加してください
+                  </div>
+                ) : (() => {
+                  const assignedToday = new Set();
+                  if (selectedDay !== null) {
+                    Object.values(currentAssignments[selectedDay] || {}).forEach(list => {
+                      (list || []).forEach(wid => assignedToday.add(wid));
+                    });
+                  }
+                  return (
+                    <div className="worker-grid">
+                      {activeWorkers.map(w => (
+                        <WorkerChip
+                          key={w.id}
+                          worker={w}
+                          isAssigned={assignedToday.has(w.id)}
+                          isTapMode={tapMode?.workerId === w.id}
+                          onDragStart={() => setDraggedWorker({ workerId: w.id, source: 'pool' })}
+                          onDragEnd={() => setDraggedWorker(null)}
+                          onClick={() => {
+                            if (tapMode?.workerId === w.id) setTapMode(null);
+                            else setTapMode({ workerId: w.id });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* スケジュールグリッド */}
+              <div>
+                <div className="schedule-wrapper">
+                  {/* 印刷時のヘッダー */}
+                  <div className="print-header">
+                    <div className="print-title">工事出面表</div>
+                    <div className="print-date">
+                      {formatDate(data.weekStartDate, 0)} 〜 {formatDate(data.weekStartDate, 6)}
+                    </div>
+                  </div>
+
+                  <div className="schedule-grid" ref={gridRef}>
+                    {/* ヘッダー行 */}
+                    <div
+                      className="grid-header"
+                      onClick={() => { setSettingsTab('sites'); setShowSettings(true); }}
+                      style={{ cursor: 'pointer' }}
+                      title="クリックで現場マスター編集"
+                    >現場</div>
+                    {DAY_LABELS.map((label, i) => {
+                      const cls = i === 5 ? 'sat' : i === 6 ? 'sun' : '';
+                      const isActive = selectedDay === i;
+                      // その日の配置数
+                      const assignedCount = new Set();
+                      Object.values(currentAssignments[i] || {}).forEach(list => {
+                        (list || []).forEach(wid => assignedCount.add(wid));
+                      });
+                      const remaining = activeWorkers.length - assignedCount.size;
+                      const dateStr = (() => {
+                        const d = parseLocalDate(data.weekStartDate);
+                        d.setDate(d.getDate() + i);
+                        return toLocalDateStr(d);
+                      })();
+                      const isHoliday = isCompanyHoliday(dateStr);
+                      return (
+                        <div
+                          key={i}
+                          className={`grid-header ${cls} ${isActive ? 'active-day' : ''} ${isHoliday ? 'holiday-day' : ''} no-print-active`}
+                          onClick={() => setSelectedDay(isActive ? null : i)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setContextMenu({ x: e.clientX, y: e.clientY, kind: 'day', day: i });
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title={isActive ? 'クリックで全曜日表示に戻す' : 'この曜日をアクティブにする / 右クリックでメニュー'}
+                        >
+                          {label}
+                          <span className="grid-day-num">{formatDate(data.weekStartDate, i)}</span>
+                          {isHoliday && <span className="grid-day-holiday">会社休日</span>}
+                          {activeWorkers.length > 0 && !isHoliday && (
+                            <span className="grid-day-remaining no-print">
+                              残{remaining}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* 各現場行 */}
+                    {displaySites.map(site => {
+                      const typeClass = site.type === 'day' ? 'day-type'
+                        : site.type === 'night' ? 'night-type'
+                        : site.type === 'special' ? 'special-type'
+                        : '';
+                      const Icon = site.type === 'day' ? Sun
+                        : site.type === 'night' ? Moon
+                        : null; // 通常・特殊はアイコン無し
+
+                      return (
+                        <React.Fragment key={site.id}>
+                          <div className={`grid-cell site-cell ${typeClass}`}>
+                            {Icon && <Icon size={12} className="site-icon" />}
+                            <span className="site-name">{site.name}</span>
+                          </div>
+                          {Array(7).fill(null).map((_, day) => {
+                            const workerIds = currentAssignments[day]?.[site.id] || [];
+                            const isDropTarget = draggedWorker !== null;
+                            const isTapTarget = tapMode !== null;
+
+                            const cols = workerIds.length <= 9 ? 3 : 4;
+                            const isActive = activeCell && activeCell.day === day && activeCell.siteId === site.id;
+                            const cellDateStr = (() => {
+                              const d = parseLocalDate(data.weekStartDate);
+                              d.setDate(d.getDate() + day);
+                              return toLocalDateStr(d);
+                            })();
+                            const isCellHoliday = isCompanyHoliday(cellDateStr);
+                            return (
+                              <div
+                                key={day}
+                                className={`grid-cell day-cell ${selectedDay === day ? 'active-day-col' : ''} ${isActive ? 'cell-active' : ''} ${isCellHoliday ? 'holiday-cell' : ''}`}
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                                  gridAutoRows: 'min-content',
+                                  gap: 2,
+                                }}
+                                onPointerDown={(e) => {
+                                  // 矩形選択開始（左クリック・修飾キーなし・placed-worker以外）
+                                  if (e.button !== 0) return;
+                                  if (e.target.closest('.placed-worker')) return;
+                                  if (tapMode) return;
+                                  if (e.shiftKey || e.ctrlKey || e.metaKey) return;
+                                  setRectSelect({ startX: e.clientX, startY: e.clientY, currX: e.clientX, currY: e.clientY });
+                                }}
+                                onDragOver={(e) => {
+                                  if (draggedWorker) {
+                                    e.preventDefault();
+                                    e.currentTarget.classList.add('drop-active');
+                                  }
+                                }}
+                                onDragLeave={(e) => {
+                                  e.currentTarget.classList.remove('drop-active');
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  e.currentTarget.classList.remove('drop-active');
+                                  if (!draggedWorker) return;
+
+                                  // プールからのドラッグ：単一人員配置
+                                  if (draggedWorker.source === 'pool') {
+                                    assignWorker(draggedWorker.workerId, day, site.id);
+                                    setDraggedWorker(null);
+                                    return;
+                                  }
+
+                                  // セルからのドラッグ：選択全員をドロップ先セルに集約
+                                  const items = draggedWorker.items || [];
+                                  if (items.length === 0) { setDraggedWorker(null); return; }
+                                  const tDay = day;
+                                  const tSite = site;
+                                  const allWorkerIds = [];
+                                  items.forEach(it => {
+                                    it.workerIds.forEach(wid => {
+                                      if (!allWorkerIds.includes(wid)) allWorkerIds.push(wid);
+                                    });
+                                  });
+
+                                  const newSelection = new Set();
+                                  updateCurrentWeekAssignments((cur, prev) => {
+                                    const newAssignments = cur.map(da => ({ ...da }));
+                                    // 元セルから除去
+                                    items.forEach(it => {
+                                      newAssignments[it.day] = { ...newAssignments[it.day] };
+                                      const list = newAssignments[it.day][it.siteId] || [];
+                                      newAssignments[it.day][it.siteId] = list.filter(wid => !it.workerIds.includes(wid));
+                                    });
+                                    // ドロップ先セルに集約
+                                    const existing = (newAssignments[tDay][tSite.id] || []).filter(wid => !allWorkerIds.includes(wid));
+                                    const merged = [...existing, ...allWorkerIds];
+                                    // 同日他セルから(昼夜以外)除外
+                                    Object.keys(newAssignments[tDay]).forEach(sid => {
+                                      if (sid === tSite.id) return;
+                                      const otherSite = prev.sites.find(s => s.id === sid);
+                                      if (!otherSite) return;
+                                      const allowDual = (
+                                        (tSite.type === 'day' && otherSite.type === 'night') ||
+                                        (tSite.type === 'night' && otherSite.type === 'day')
+                                      );
+                                      if (!allowDual) {
+                                        newAssignments[tDay][sid] = (newAssignments[tDay][sid] || []).filter(wid => !allWorkerIds.includes(wid));
+                                      }
+                                    });
+                                    newAssignments[tDay] = { ...newAssignments[tDay], [tSite.id]: merged };
+                                    allWorkerIds.forEach(wid => newSelection.add(workerKey(tDay, tSite.id, wid)));
+                                    return newAssignments;
+                                  });
+                                  setSelectedWorkers(newSelection);
+                                  setDraggedWorker(null);
+                                }}
+                                onClick={(e) => {
+                                  if (tapMode) {
+                                    assignWorker(tapMode.workerId, day, site.id);
+                                    setTapMode(null);
+                                    return;
+                                  }
+                                  // 矩形ドラッグ直後は通常選択を走らせない
+                                  if (rectSelect) return;
+                                  // placed-worker内をクリックした場合はそちらに任せる
+                                  if (e.target.closest('.placed-worker')) return;
+                                  clickCell(day, site.id, e);
+                                }}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  // 何も選択されていなければ、このセル全員を選択
+                                  if (selectedWorkers.size === 0) {
+                                    const keys = getCellWorkerKeys(day, site.id);
+                                    setSelectedWorkers(new Set(keys));
+                                  }
+                                  setActiveCell({ day, siteId: site.id });
+                                  setContextMenu({ x: e.clientX, y: e.clientY });
+                                }}
+                              >
+                                {workerIds.map((wid, idx) => {
+                                  const w = data.workers.find(x => x.id === wid);
+                                  if (!w) return null;
+                                  const wKey = workerKey(day, site.id, wid);
+                                  const isWorkerSelected = selectedWorkers.has(wKey);
+                                  const hasSelection = selectedWorkers.size > 0;
+                                  const wPalette = w.color ? getColor(w.color) : null;
+                                  const wStyle = wPalette
+                                    ? { background: wPalette.bg, color: wPalette.fg, borderColor: wPalette.fg }
+                                    : undefined;
+                                  return (
+                                    <div
+                                      key={wid + '_' + idx}
+                                      data-worker-key={wKey}
+                                      style={wStyle}
+                                      className={`placed-worker ${typeClass} ${cols === 4 ? 'dense' : ''} ${isWorkerSelected ? 'worker-selected' : ''} ${hasSelection && !isWorkerSelected ? 'worker-faded' : ''}`}
+                                      draggable
+                                      onDragStart={(e) => {
+                                        e.stopPropagation();
+                                        e.dataTransfer.effectAllowed = 'move';
+                                        let items;
+                                        if (selectedWorkers.has(wKey) && selectedWorkers.size > 1) {
+                                          // 選択中の全員を一緒に移動
+                                          items = groupSelectedByCell();
+                                        } else {
+                                          // 単一人員のドラッグ
+                                          const siteIdx = displaySites.findIndex(s => s.id === site.id);
+                                          items = [{ day, siteId: site.id, siteIdx, workerIds: [wid] }];
+                                        }
+                                        const count = items.reduce((sum, it) => sum + it.workerIds.length, 0);
+                                        if (count > 1) {
+                                          // カウントバッジ付きのゴーストを生成
+                                          const ghost = document.createElement('div');
+                                          ghost.className = 'drag-ghost';
+                                          ghost.innerHTML =
+                                            '<span class="drag-ghost-name">' + w.name + '</span>' +
+                                            '<span class="drag-ghost-count">' + count + '</span>';
+                                          document.body.appendChild(ghost);
+                                          e.dataTransfer.setDragImage(ghost, 16, 16);
+                                          setTimeout(() => { try { document.body.removeChild(ghost); } catch(_) {} }, 0);
+                                        }
+                                        setDraggedWorker({ source: 'cell', items });
+                                      }}
+                                      onDragEnd={() => setDraggedWorker(null)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (rectSelect) return;
+                                        clickWorker(day, site.id, wid, e);
+                                      }}
+                                      onContextMenu={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (!isWorkerSelected) {
+                                          setSelectedWorkers(new Set([wKey]));
+                                        }
+                                        setActiveCell({ day, siteId: site.id });
+                                        setContextMenu({ x: e.clientX, y: e.clientY });
+                                      }}
+                                    >
+                                      <span className="placed-name">{w.name}</span>
+                                      <button
+                                        className="placed-remove no-print"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeWorker(wid, day, site.id);
+                                        }}
+                                        aria-label="削除"
+                                      >×</button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, color: '#666', padding: '0 4px' }}>
+                  ※昼現場と夜現場は同じ人を同日に両方配置できます。それ以外の現場間では同日重複配置すると元の現場から自動移動します。
+                </div>
+              </div>
+            </div>
+
+            {/* ===== 設定モーダル ===== */}
+            {showSettings && (
+              <div className="modal-backdrop no-print" onClick={() => setShowSettings(false)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <span>人員・現場の管理</span>
+                    <button className="btn btn-sm" onClick={() => setShowSettings(false)}><X size={14} /></button>
+                  </div>
+                  <div className="modal-tabs">
+                    <button
+                      className={`modal-tab ${settingsTab === 'workers' ? 'active' : ''}`}
+                      onClick={() => setSettingsTab('workers')}
+                    ><Users size={14} style={{ verticalAlign: 'middle', marginRight: 4 }}/>人員 ({activeWorkers.length})</button>
+                    <button
+                      className={`modal-tab ${settingsTab === 'sites' ? 'active' : ''}`}
+                      onClick={() => setSettingsTab('sites')}
+                    ><Briefcase size={14} style={{ verticalAlign: 'middle', marginRight: 4 }}/>現場 ({activeSites.filter(s => s.type !== 'special').length})</button>
+                  </div>
+                  <div className="modal-body">
+                    {settingsTab === 'workers' ? (
+                      <>
+                        <div className="form-row">
+                          <input
+                            className="input"
+                            placeholder="例) H佐々木"
+                            value={newWorkerName}
+                            onChange={(e) => setNewWorkerName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && addWorker()}
+                          />
+                          <button className="btn btn-primary" onClick={addWorker}>
+                            <Plus size={14} /> 追加
+                          </button>
+                        </div>
+                        <div className="csv-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <button className="btn btn-sm" onClick={() => { setShowCsvDialog('workers'); setCsvText(''); setCsvMode('append'); }}>
+                            <FileUp size={12} /> CSV取り込み
+                          </button>
+                          <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>並び替え:</span>
+                          <button className="btn btn-sm" onClick={() => sortWorkers('name')}>名前</button>
+                          <button className="btn btn-sm" onClick={() => sortWorkers('affiliation')}>所属</button>
+                          <button className="btn btn-sm" onClick={() => sortWorkers('color')}>カラー</button>
+                        </div>
+                        <div className="item-list reorder-list">
+                          {activeWorkers.map(w => {
+                            const dragging = reorderDrag?.kind === 'worker' && reorderDrag.id === w.id;
+                            const hover = reorderHover?.kind === 'worker' && reorderHover.id === w.id ? reorderHover.position : null;
+                            return (
+                              <div
+                                key={w.id}
+                                className={`worker-row ${dragging ? 'reorder-dragging' : ''} ${hover === 'above' ? 'reorder-above' : ''} ${hover === 'below' ? 'reorder-below' : ''}`}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.effectAllowed = 'move';
+                                  setReorderDrag({ kind: 'worker', id: w.id });
+                                }}
+                                onDragOver={(e) => {
+                                  if (reorderDrag?.kind !== 'worker') return;
+                                  e.preventDefault();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const pos = e.clientY < rect.top + rect.height / 2 ? 'above' : 'below';
+                                  setReorderHover({ kind: 'worker', id: w.id, position: pos });
+                                }}
+                                onDragLeave={(e) => {
+                                  // leave handled on drop/dragend
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  if (reorderDrag?.kind === 'worker' && reorderHover?.kind === 'worker') {
+                                    reorderWorkers(reorderDrag.id, reorderHover.id, reorderHover.position);
+                                  }
+                                  setReorderDrag(null);
+                                  setReorderHover(null);
+                                }}
+                                onDragEnd={() => { setReorderDrag(null); setReorderHover(null); }}
+                              >
+                                <span className="reorder-handle" title="ドラッグで並び替え">⋮⋮</span>
+                                {editingWorker === w.id ? (
+                                  <input
+                                    className="input"
+                                    defaultValue={w.name}
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') updateWorker(w.id, e.target.value);
+                                      if (e.key === 'Escape') setEditingWorker(null);
+                                    }}
+                                    onBlur={(e) => updateWorker(w.id, e.target.value)}
+                                  />
+                                ) : (
+                                  <span className="item-name worker-name-cell" onClick={() => setEditingWorker(w.id)}>
+                                    {w.name}
+                                  </span>
+                                )}
+                                <input
+                                  className="input affiliation-input"
+                                  placeholder="所属(任意)"
+                                  defaultValue={w.affiliation || ''}
+                                  onBlur={(e) => updateWorkerAffiliation(w.id, e.target.value.trim())}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                />
+                                <div className="color-palette">
+                                  <button
+                                    type="button"
+                                    className={`color-swatch ${!w.color ? 'active' : ''}`}
+                                    title="なし"
+                                    onClick={() => updateWorkerColor(w.id, null)}
+                                  >×</button>
+                                  {COLOR_PALETTE.map(p => (
+                                    <button
+                                      type="button"
+                                      key={p.id}
+                                      className={`color-swatch ${w.color === p.id ? 'active' : ''}`}
+                                      style={{ background: p.bg, borderColor: w.color === p.id ? p.fg : '#999' }}
+                                      title={p.label}
+                                      onClick={() => updateWorkerColor(w.id, p.id)}
+                                    />
+                                  ))}
+                                </div>
+                                <button className="btn btn-sm btn-danger" onClick={() => deleteWorker(w.id)}>
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                          {activeWorkers.length === 0 && (
+                            <div className="empty-state">人員を追加してください（最大100名）</div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="form-row">
+                          <input
+                            className="input"
+                            placeholder="現場名 例) 〇〇ビル新築"
+                            value={newSiteName}
+                            onChange={(e) => setNewSiteName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && addSite()}
+                          />
+                          <select
+                            className="input"
+                            style={{ flex: 0, minWidth: 100 }}
+                            value={newSiteType}
+                            onChange={(e) => setNewSiteType(e.target.value)}
+                          >
+                            <option value="day">昼</option>
+                            <option value="night">夜</option>
+                          </select>
+                          <button className="btn btn-primary" onClick={addSite}>
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#666', marginBottom: 10, lineHeight: 1.5 }}>
+                          昼夜分かれる現場は「○○現場 昼」「○○現場 夜」と分けて作成し、種別を指定すると同じ人を同日に両方配置できます。
+                        </div>
+                        <div className="csv-row">
+                          <button className="btn btn-sm" onClick={() => { setShowCsvDialog('sites'); setCsvText(''); setCsvMode('append'); }}>
+                            <FileUp size={12} /> CSV/テキストで一括取り込み
+                          </button>
+                        </div>
+                        <div className="item-list reorder-list">
+                          {activeSites.map(s => {
+                            const isSpecial = s.type === 'special';
+                            const dragging = reorderDrag?.kind === 'site' && reorderDrag.id === s.id;
+                            const hover = reorderHover?.kind === 'site' && reorderHover.id === s.id ? reorderHover.position : null;
+                            return (
+                              <div
+                                key={s.id}
+                                className={`item-row ${dragging ? 'reorder-dragging' : ''} ${hover === 'above' ? 'reorder-above' : ''} ${hover === 'below' ? 'reorder-below' : ''}`}
+                                draggable={!isSpecial}
+                                onDragStart={(e) => {
+                                  if (isSpecial) return;
+                                  e.dataTransfer.effectAllowed = 'move';
+                                  setReorderDrag({ kind: 'site', id: s.id });
+                                }}
+                                onDragOver={(e) => {
+                                  if (reorderDrag?.kind !== 'site' || isSpecial) return;
+                                  e.preventDefault();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const pos = e.clientY < rect.top + rect.height / 2 ? 'above' : 'below';
+                                  setReorderHover({ kind: 'site', id: s.id, position: pos });
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  if (reorderDrag?.kind === 'site' && reorderHover?.kind === 'site') {
+                                    reorderSites(reorderDrag.id, reorderHover.id, reorderHover.position);
+                                  }
+                                  setReorderDrag(null);
+                                  setReorderHover(null);
+                                }}
+                                onDragEnd={() => { setReorderDrag(null); setReorderHover(null); }}
+                              >
+                                {!isSpecial && <span className="reorder-handle" title="ドラッグで並び替え">⋮⋮</span>}
+                                {editingSite === s.id ? (
+                                  <SiteEditor site={s} onSave={updateSite} onCancel={() => setEditingSite(null)} />
+                                ) : (
+                                  <>
+                                    <span className="item-name">{s.name}</span>
+                                    {s.type === 'day' && <span className="item-badge day-badge">昼</span>}
+                                    {s.type === 'night' && <span className="item-badge night-badge">夜</span>}
+                                    {s.type === 'special' && <span className="item-badge special-badge">特殊</span>}
+                                    {s.type !== 'special' && (
+                                      <>
+                                        <button
+                                          className="btn btn-sm"
+                                          title="優先メンバー編集"
+                                          onClick={() => setPreferredEditSite(s.id)}
+                                        >
+                                          優先 ({(s.preferredWorkerIds || []).filter(wid => activeWorkers.some(w => w.id === wid)).length})
+                                        </button>
+                                        <button className="btn btn-sm" onClick={() => setEditingSite(s.id)}>
+                                          <Edit2 size={12} />
+                                        </button>
+                                        <button className="btn btn-sm btn-danger" onClick={() => deleteSite(s.id)}>
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 保存ダイアログ */}
+            {showSaveDialog && (
+              <div className="modal-backdrop no-print" onClick={() => setShowSaveDialog(false)}>
+                <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <span>保存</span>
+                    <button className="btn btn-sm" onClick={() => setShowSaveDialog(false)}><X size={14} /></button>
+                  </div>
+                  <div className="modal-body">
+                    <label style={{ fontSize: 12, fontWeight: 700 }}>ファイル名</label>
+                    <input
+                      className="input"
+                      style={{ marginTop: 6, marginBottom: 12 }}
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && saveAs()}
+                    />
+                    <button className="btn btn-primary" style={{ width: '100%' }} onClick={saveAs}>
+                      <Save size={14} /> 保存する
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 読込ダイアログ */}
+            {showLoadDialog && (
+              <div className="modal-backdrop no-print" onClick={() => setShowLoadDialog(false)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <span>保存済データの読込</span>
+                    <button className="btn btn-sm" onClick={() => setShowLoadDialog(false)}><X size={14} /></button>
+                  </div>
+                  <div className="modal-body">
+                    {savedFiles.length === 0 ? (
+                      <div className="empty-state">保存されたデータがありません</div>
+                    ) : (
+                      savedFiles.slice().reverse().map(f => (
+                        <div key={f.name} className="file-row">
+                          <div className="file-info">
+                            <div className="file-name">{f.name}</div>
+                            <div className="file-date">{new Date(f.savedAt).toLocaleString('ja-JP')}</div>
+                          </div>
+                          <button className="btn btn-sm btn-primary" onClick={() => loadFile(f)}>読込</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => deleteFile(f.name)}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* CSV取り込みダイアログ */}
+            {showCsvDialog && (
+              <div className="modal-backdrop no-print" onClick={() => setShowCsvDialog(null)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <span>
+                      {showCsvDialog === 'workers' ? '人員' : showCsvDialog === 'sites' ? '現場' : '会社休日'}の一括取り込み
+                    </span>
+                    <button className="btn btn-sm" onClick={() => setShowCsvDialog(null)}><X size={14} /></button>
+                  </div>
+                  <div className="modal-body">
+                    <div className="csv-help">
+                      {showCsvDialog === 'workers' ? (
+                        <>
+                          <strong>形式:</strong> 1行1名、1列目に名前<br />
+                          例)<br />
+                          <code>H佐々木<br />S増田<br />K田中</code>
+                        </>
+                      ) : showCsvDialog === 'sites' ? (
+                        <>
+                          <strong>形式:</strong> 1行1現場、1列目=現場名、2列目=種別(任意)<br />
+                          種別: <code>昼</code>(空欄でも可) / <code>夜</code><br />
+                          例)<br />
+                          <code>○○ビル新築<br />△△工事 昼,昼<br />△△工事 夜,夜<br />□□補修</code>
+                        </>
+                      ) : (
+                        <>
+                          <strong>形式:</strong> 1行1日付。各種フォーマット対応:<br />
+                          <code>2026-05-03</code> / <code>2026/5/3</code> / <code>2026年5月3日</code> / <code>5/3</code>(年は今年)<br />
+                          例)<br />
+                          <code>2026-04-29<br />2026-05-03<br />2026/5/4<br />5/5</code>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="csv-mode-row">
+                      <label className={`csv-mode ${csvMode === 'append' ? 'active' : ''}`}>
+                        <input type="radio" name="csvmode" checked={csvMode === 'append'} onChange={() => setCsvMode('append')} />
+                        <span><strong>追加</strong><br /><small>既存データに足す</small></span>
+                      </label>
+                      <label className={`csv-mode ${csvMode === 'replace' ? 'active' : ''}`}>
+                        <input type="radio" name="csvmode" checked={csvMode === 'replace'} onChange={() => setCsvMode('replace')} />
+                        <span><strong>置換</strong><br /><small>既存を消して入替</small></span>
+                      </label>
+                    </div>
+
+                    <div className="csv-file-row">
+                      <input
+                        type="file"
+                        accept=".csv,.txt"
+                        ref={csvFileInputRef}
+                        onChange={handleCsvFileSelect}
+                        style={{ display: 'none' }}
+                      />
+                      <button className="btn btn-sm" onClick={() => csvFileInputRef.current?.click()}>
+                        <FileUp size={12} /> CSVファイルから読込
+                      </button>
+                      <span style={{ fontSize: 11, color: '#666' }}>または下に直接貼り付け</span>
+                    </div>
+
+                    <textarea
+                      className="input csv-textarea"
+                      placeholder={
+                        showCsvDialog === 'workers' ? 'H佐々木\nS増田\n...'
+                        : showCsvDialog === 'sites' ? '○○ビル,通常\n△△工事 昼,昼\n△△工事 夜,夜'
+                        : '2026-04-29\n2026-05-03\n5/4'
+                      }
+                      value={csvText}
+                      onChange={(e) => setCsvText(e.target.value)}
+                      rows={8}
+                    />
+
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      <button className="btn" style={{ flex: 1 }} onClick={() => setShowCsvDialog(null)}>キャンセル</button>
+                      <button
+                        className="btn btn-primary"
+                        style={{ flex: 2 }}
+                        onClick={() => {
+                          const doImport = () => {
+                            if (showCsvDialog === 'workers') importWorkersCsv();
+                            else if (showCsvDialog === 'sites') importSitesCsv();
+                            else if (showCsvDialog === 'holidays') importHolidaysCsv();
+                          };
+                          const labelMap = { workers: '人員', sites: '現場', holidays: '会社休日' };
+                          if (csvMode === 'replace') {
+                            askConfirm(
+                              `既存の${labelMap[showCsvDialog]}データを全て消して取り込みます。よろしいですか？`,
+                              doImport
+                            );
+                          } else {
+                            doImport();
+                          }
+                        }}
+                      >
+                        <FileUp size={14} /> {csvMode === 'replace' ? '置換して取り込む' : '追加で取り込む'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* 確認ダイアログ */}
+            {confirmDialog && (
+              <div className="modal-backdrop no-print" onClick={() => setConfirmDialog(null)}>
+                <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <span>確認</span>
+                    <button className="btn btn-sm" onClick={() => setConfirmDialog(null)}><X size={14} /></button>
+                  </div>
+                  <div className="modal-body">
+                    <div style={{ whiteSpace: 'pre-line', marginBottom: 16, fontSize: 14, lineHeight: 1.5 }}>
+                      {confirmDialog.message}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn" style={{ flex: 1 }} onClick={() => setConfirmDialog(null)}>
+                        キャンセル
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        style={{ flex: 1 }}
+                        onClick={() => {
+                          const fn = confirmDialog.onConfirm;
+                          setConfirmDialog(null);
+                          fn?.();
+                        }}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 予定登録モーダル */}
+            {showScheduleModal && (
+              <div className="modal-backdrop no-print" onClick={() => setShowScheduleModal(false)}>
+                <div className="modal" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <span>予定登録</span>
+                    <button className="btn btn-sm" onClick={() => setShowScheduleModal(false)}><X size={14} /></button>
+                  </div>
+                  <div className="modal-tabs">
+                    {[
+                      ['holidays', '会社休日'],
+                      ['leaves', '個人休暇'],
+                      ['trainings', '講習'],
+                      ['required', '必須人員'],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        className={`modal-tab ${scheduleTab === key ? 'active' : ''}`}
+                        onClick={() => {
+                          setScheduleTab(key);
+                          // タブ切替で入力中フォームをリセット
+                          setScheduleForm({ date: '', workerId: '', workerIds: [], siteId: '', type: 'paid' });
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
+                  <div className="modal-body">
+
+                    {/* === 会社休日 === */}
+                    {scheduleTab === 'holidays' && (
+                      <>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 10, lineHeight: 1.5 }}>
+                          会社休日として登録した日は、出面表でグレー網掛け表示されます。<br/>
+                          人員は自動で「休み」へ入りませんが、休日出勤者は通常通り現場へ配置できます。
+                        </div>
+                        <div className="form-row">
+                          <input
+                            type="date"
+                            className="input"
+                            value={scheduleForm.date}
+                            onChange={(e) => setScheduleForm(f => ({ ...f, date: e.target.value }))}
+                          />
+                          <button className="btn btn-primary" onClick={() => {
+                            addHoliday(scheduleForm.date);
+                            setScheduleForm(f => ({ ...f, date: '' }));
+                          }}>
+                            <Plus size={14} /> 登録
+                          </button>
+                        </div>
+                        <div className="csv-row">
+                          <button className="btn btn-sm" onClick={() => { setShowCsvDialog('holidays'); setCsvText(''); setCsvMode('append'); }}>
+                            <FileUp size={12} /> CSV/テキストで一括取り込み
+                          </button>
+                        </div>
+                        <div className="schedule-list">
+                          {(data.schedules?.holidays || []).slice().sort((a,b) => a.date.localeCompare(b.date)).map(h => (
+                            <div key={h.id} className="schedule-row">
+                              <span className="schedule-date">{formatFullDate(h.date, 0)}</span>
+                              <span className="schedule-tag holiday-tag">会社休日</span>
+                              <button className="btn btn-sm btn-danger" onClick={() => deleteSchedule('holidays', h.id)}>
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))}
+                          {(data.schedules?.holidays || []).length === 0 && (
+                            <div className="empty-state">登録された会社休日はありません</div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* === 個人休暇 === */}
+                    {scheduleTab === 'leaves' && (
+                      <>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 10, lineHeight: 1.5 }}>
+                          人員ごとに休暇予定を登録します。登録すると、その日の該当人員が「有給休暇」または「休み」セルに即時配置されます。
+                        </div>
+                        <div className="form-row" style={{ flexWrap: 'wrap' }}>
+                          <input
+                            type="date"
+                            className="input"
+                            style={{ flex: '0 0 160px' }}
+                            value={scheduleForm.date}
+                            onChange={(e) => setScheduleForm(f => ({ ...f, date: e.target.value }))}
+                          />
+                          <select
+                            className="input"
+                            style={{ flex: '0 0 100px' }}
+                            value={scheduleForm.type}
+                            onChange={(e) => setScheduleForm(f => ({ ...f, type: e.target.value }))}
+                          >
+                            <option value="paid">有給</option>
+                            <option value="rest">休み</option>
+                          </select>
+                          <select
+                            className="input"
+                            value={scheduleForm.workerId}
+                            onChange={(e) => setScheduleForm(f => ({ ...f, workerId: e.target.value }))}
+                          >
+                            <option value="">人員を選択…</option>
+                            {activeWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                          </select>
+                          <button className="btn btn-primary" onClick={() => {
+                            addLeave(scheduleForm.date, scheduleForm.workerId, scheduleForm.type);
+                            setScheduleForm(f => ({ ...f, date: '', workerId: '' }));
+                          }}>
+                            <Plus size={14} /> 登録
+                          </button>
+                        </div>
+                        <div className="schedule-list">
+                          {(data.schedules?.leaves || []).slice().sort((a,b) => a.date.localeCompare(b.date)).map(l => {
+                            const w = data.workers.find(x => x.id === l.workerId);
+                            return (
+                              <div key={l.id} className="schedule-row">
+                                <span className="schedule-date">{formatFullDate(l.date, 0)}</span>
+                                <span className={`schedule-tag ${l.type === 'paid' ? 'paid-tag' : 'rest-tag'}`}>
+                                  {l.type === 'paid' ? '有給' : '休み'}
+                                </span>
+                                <span className="schedule-name">{w?.name || '(削除済)'}</span>
+                                <button className="btn btn-sm btn-danger" onClick={() => deleteSchedule('leaves', l.id)}>
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                          {(data.schedules?.leaves || []).length === 0 && (
+                            <div className="empty-state">登録された休暇予定はありません</div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* === 講習 === */}
+                    {scheduleTab === 'trainings' && (
+                      <>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 10, lineHeight: 1.5 }}>
+                          講習日と対象人員(複数可)を登録します。登録すると該当人員が「講習」セルに即時配置されます。
+                        </div>
+                        <div className="form-row">
+                          <input
+                            type="date"
+                            className="input"
+                            style={{ flex: '0 0 160px' }}
+                            value={scheduleForm.date}
+                            onChange={(e) => setScheduleForm(f => ({ ...f, date: e.target.value }))}
+                          />
+                          <button className="btn btn-primary" onClick={() => {
+                            addTraining(scheduleForm.date, scheduleForm.workerIds);
+                            setScheduleForm(f => ({ ...f, date: '', workerIds: [] }));
+                          }}>
+                            <Plus size={14} /> 登録 ({scheduleForm.workerIds.length}名)
+                          </button>
+                        </div>
+                        <div className="preferred-pick-grid" style={{ marginBottom: 12 }}>
+                          {activeWorkers.map(w => {
+                            const isOn = scheduleForm.workerIds.includes(w.id);
+                            const palette = w.color ? getColor(w.color) : null;
+                            const style = isOn
+                              ? (palette ? { background: palette.bg, color: palette.fg, borderColor: palette.fg } : { background: '#1a1a1a', color: '#fff', borderColor: '#1a1a1a' })
+                              : {};
+                            return (
+                              <button
+                                key={w.id}
+                                type="button"
+                                className={`preferred-pick-chip ${isOn ? 'on' : ''}`}
+                                style={style}
+                                onClick={() => setScheduleForm(f => ({
+                                  ...f,
+                                  workerIds: f.workerIds.includes(w.id)
+                                    ? f.workerIds.filter(x => x !== w.id)
+                                    : [...f.workerIds, w.id],
+                                }))}
+                              >{w.name}</button>
+                            );
+                          })}
+                        </div>
+                        <div className="schedule-list">
+                          {(data.schedules?.trainings || []).slice().sort((a,b) => a.date.localeCompare(b.date)).map(t => (
+                            <div key={t.id} className="schedule-row">
+                              <span className="schedule-date">{formatFullDate(t.date, 0)}</span>
+                              <span className="schedule-tag training-tag">講習</span>
+                              <span className="schedule-name">
+                                {t.workerIds.map(wid => data.workers.find(x => x.id === wid)?.name).filter(Boolean).join(', ')} ({t.workerIds.length}名)
+                              </span>
+                              <button className="btn btn-sm btn-danger" onClick={() => deleteSchedule('trainings', t.id)}>
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))}
+                          {(data.schedules?.trainings || []).length === 0 && (
+                            <div className="empty-state">登録された講習予定はありません</div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* === 必須人員 === */}
+                    {scheduleTab === 'required' && (
+                      <>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 10, lineHeight: 1.5 }}>
+                          特定の日に特定の現場へ必ず配置したい人員を登録します(竣工検査などで活用)。<br/>
+                          登録すると該当セルへ即時配置されます。
+                        </div>
+                        <div className="form-row" style={{ flexWrap: 'wrap' }}>
+                          <input
+                            type="date"
+                            className="input"
+                            style={{ flex: '0 0 160px' }}
+                            value={scheduleForm.date}
+                            onChange={(e) => setScheduleForm(f => ({ ...f, date: e.target.value }))}
+                          />
+                          <select
+                            className="input"
+                            value={scheduleForm.siteId}
+                            onChange={(e) => setScheduleForm(f => ({ ...f, siteId: e.target.value }))}
+                          >
+                            <option value="">現場を選択…</option>
+                            {activeSites.filter(s => s.type !== 'special').map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                          <button className="btn btn-primary" onClick={() => {
+                            addRequired(scheduleForm.date, scheduleForm.siteId, scheduleForm.workerIds);
+                            setScheduleForm(f => ({ ...f, date: '', siteId: '', workerIds: [] }));
+                          }}>
+                            <Plus size={14} /> 登録 ({scheduleForm.workerIds.length}名)
+                          </button>
+                        </div>
+                        <div className="preferred-pick-grid" style={{ marginBottom: 12 }}>
+                          {activeWorkers.map(w => {
+                            const isOn = scheduleForm.workerIds.includes(w.id);
+                            const palette = w.color ? getColor(w.color) : null;
+                            const style = isOn
+                              ? (palette ? { background: palette.bg, color: palette.fg, borderColor: palette.fg } : { background: '#1a1a1a', color: '#fff', borderColor: '#1a1a1a' })
+                              : {};
+                            return (
+                              <button
+                                key={w.id}
+                                type="button"
+                                className={`preferred-pick-chip ${isOn ? 'on' : ''}`}
+                                style={style}
+                                onClick={() => setScheduleForm(f => ({
+                                  ...f,
+                                  workerIds: f.workerIds.includes(w.id)
+                                    ? f.workerIds.filter(x => x !== w.id)
+                                    : [...f.workerIds, w.id],
+                                }))}
+                              >{w.name}</button>
+                            );
+                          })}
+                        </div>
+                        <div className="schedule-list">
+                          {(data.schedules?.required || []).slice().sort((a,b) => a.date.localeCompare(b.date)).map(r => {
+                            const site = data.sites.find(s => s.id === r.siteId);
+                            return (
+                              <div key={r.id} className="schedule-row">
+                                <span className="schedule-date">{formatFullDate(r.date, 0)}</span>
+                                <span className="schedule-tag required-tag">必須</span>
+                                <span className="schedule-name">
+                                  {site?.name || '(削除済)'} →{' '}
+                                  {r.workerIds.map(wid => data.workers.find(x => x.id === wid)?.name).filter(Boolean).join(', ')} ({r.workerIds.length}名)
+                                </span>
+                                <button className="btn btn-sm btn-danger" onClick={() => deleteSchedule('required', r.id)}>
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                          {(data.schedules?.required || []).length === 0 && (
+                            <div className="empty-state">登録された必須人員はありません</div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 優先メンバー編集モーダル */}
+            {preferredEditSite && (() => {
+              const site = data.sites.find(s => s.id === preferredEditSite);
+              if (!site) return null;
+              const selected = new Set(site.preferredWorkerIds || []);
+              const toggle = (wid) => {
+                const next = new Set(selected);
+                if (next.has(wid)) next.delete(wid);
+                else next.add(wid);
+                updateSitePreferred(site.id, [...next]);
+              };
+              return (
+                <div className="modal-backdrop no-print" style={{ zIndex: 110 }} onClick={() => setPreferredEditSite(null)}>
+                  <div className="modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <span>優先メンバー: {site.name}</span>
+                      <button className="btn btn-sm" onClick={() => setPreferredEditSite(null)}><X size={14} /></button>
+                    </div>
+                    <div className="modal-body">
+                      <div style={{ fontSize: 12, color: '#666', marginBottom: 10, lineHeight: 1.5 }}>
+                        この現場に「優先的に配置したい人員」を選択してください。<br/>
+                        曜日メニューの「自動配置」実行時、最優先で配置されます。
+                      </div>
+                      <div className="preferred-pick-grid">
+                        {activeWorkers.map(w => {
+                          const isOn = selected.has(w.id);
+                          const palette = w.color ? getColor(w.color) : null;
+                          const style = palette && isOn
+                            ? { background: palette.bg, color: palette.fg, borderColor: palette.fg }
+                            : (isOn ? { background: '#1a1a1a', color: '#fff', borderColor: '#1a1a1a' } : {});
+                          return (
+                            <button
+                              key={w.id}
+                              type="button"
+                              className={`preferred-pick-chip ${isOn ? 'on' : ''}`}
+                              style={style}
+                              onClick={() => toggle(w.id)}
+                            >
+                              {w.name}
+                            </button>
+                          );
+                        })}
+                        {activeWorkers.length === 0 && (
+                          <div className="empty-state">先に人員を追加してください</div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                        <button className="btn" style={{ flex: 1 }} onClick={() => updateSitePreferred(site.id, [])}>
+                          全解除
+                        </button>
+                        <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setPreferredEditSite(null)}>
+                          完了
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 印刷プレビュー */}
+            {showPrintPreview && (
+              <div className="print-preview-modal">
+                <div className="print-preview-bar no-print">
+                  <span className="print-preview-title">印刷プレビュー</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-primary" onClick={() => {
+                      quickSave();
+                      // トーストの後に印刷ダイアログが出るよう少し遅延
+                      setTimeout(() => window.print(), 100);
+                    }}>
+                      <Download size={14} /> 印刷 / PDF保存
+                    </button>
+                    <button className="btn" onClick={() => setShowPrintPreview(false)}>
+                      <X size={14} /> 閉じる
+                    </button>
+                  </div>
+                </div>
+
+                <div className="print-page">
+                  <div className="print-page-header">
+                    <div className="print-title-block">
+                      <div className="print-title">工事出面表</div>
+                      <div className="print-period">{getWeekRangeFull()}</div>
+                    </div>
+                    <div className="print-revision">
+                      {formatTodayJP()}訂正バージョン
+                    </div>
+                  </div>
+
+                  <table className="print-table">
+                    <thead>
+                      <tr>
+                        <th className="th-site">現場</th>
+                        {DAY_LABELS.map((label, i) => {
+                          const cls = i === 5 ? 'th-sat' : i === 6 ? 'th-sun' : '';
+                          const dStr = (() => {
+                            const d = parseLocalDate(data.weekStartDate);
+                            d.setDate(d.getDate() + i);
+                            return toLocalDateStr(d);
+                          })();
+                          const isHoliday = isCompanyHoliday(dStr);
+                          return (
+                            <th key={i} className={`${cls} ${isHoliday ? 'th-holiday' : ''}`}>
+                              <div className="th-day">{label}</div>
+                              <div className="th-date">{formatFullDate(data.weekStartDate, i)}</div>
+                              {isHoliday && <div className="th-holiday-label">会社休日</div>}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orderedSites.map(site => (
+                        <tr key={site.id}>
+                          <td className="td-site">{site.name}</td>
+                          {Array(7).fill(null).map((_, day) => {
+                            const workerIds = currentAssignments[day]?.[site.id] || [];
+                            const dStr = (() => {
+                              const d = parseLocalDate(data.weekStartDate);
+                              d.setDate(d.getDate() + day);
+                              return toLocalDateStr(d);
+                            })();
+                            const isHoliday = isCompanyHoliday(dStr);
+                            return (
+                              <td key={day} className={`td-workers ${isHoliday ? 'td-holiday' : ''}`}>
+                                <div className="print-workers-grid">
+                                  {workerIds.map(wid => {
+                                    const w = data.workers.find(x => x.id === wid);
+                                    return w ? (
+                                      <div key={wid} className="print-worker">{w.name}</div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 矩形選択オーバーレイ */}
+            {rectSelect && (
+              <div
+                className="rect-select-overlay no-print"
+                style={{
+                  left: Math.min(rectSelect.startX, rectSelect.currX),
+                  top: Math.min(rectSelect.startY, rectSelect.currY),
+                  width: Math.abs(rectSelect.currX - rectSelect.startX),
+                  height: Math.abs(rectSelect.currY - rectSelect.startY),
+                }}
+              />
+            )}
+
+            {/* 右クリックメニュー */}
+            {contextMenu && (
+              <div
+                className="context-menu no-print"
+                style={{ left: contextMenu.x, top: contextMenu.y }}
+                onClick={(e) => e.stopPropagation()}
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                {contextMenu.kind === 'day' ? (
+                  <>
+                    <div className="menu-section-label">{DAY_LABELS[contextMenu.day]}曜日</div>
+                    <button onClick={() => { autoAssignDay(contextMenu.day); setContextMenu(null); }}>
+                      自動配置
+                    </button>
+                    <button onClick={() => { copyDay(contextMenu.day); setContextMenu(null); }}>
+                      コピー
+                    </button>
+                    <button
+                      onClick={() => { pasteDay(contextMenu.day); setContextMenu(null); }}
+                      disabled={!clipboard}
+                    >
+                      ペースト{clipboard && (
+                        <span className="menu-count">
+                          ({clipboard.items.reduce((s, it) => s + it.workerIds.length, 0)}名)
+                        </span>
+                      )}
+                    </button>
+                    <div className="menu-divider" />
+                    <button onClick={() => { clearDay(contextMenu.day); setContextMenu(null); }}>
+                      すべてクリア
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { buildClipboard('copy'); setContextMenu(null); }}
+                      disabled={selectedWorkers.size === 0}
+                    >コピー <span className="menu-count">({selectedWorkers.size}名)</span><span className="menu-shortcut">Ctrl+C</span></button>
+                    <button
+                      onClick={() => { buildClipboard('cut'); setContextMenu(null); }}
+                      disabled={selectedWorkers.size === 0}
+                    >カット<span className="menu-shortcut">Ctrl+X</span></button>
+                    <button
+                      onClick={() => { pasteClipboard(); setContextMenu(null); }}
+                      disabled={!clipboard || !activeCell}
+                    >ペースト<span className="menu-shortcut">Ctrl+V</span></button>
+                    <div className="menu-divider" />
+                    <button
+                      onClick={() => { clearSelectedWorkers(); setContextMenu(null); }}
+                      disabled={selectedWorkers.size === 0}
+                    >選択を削除<span className="menu-shortcut">Del</span></button>
+                    <button
+                      onClick={() => { setSelectedWorkers(new Set()); setActiveCell(null); setContextMenu(null); }}
+                      disabled={selectedWorkers.size === 0}
+                    >選択解除<span className="menu-shortcut">Esc</span></button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* トースト */}
+            {toast && (
+              <div className="toast no-print">
+                {toast}
+              </div>
+            )}
+          </div>
+        </>
+      );
+    }
+
+    function WorkerChip({ worker, isAssigned, isTapMode, onDragStart, onDragEnd, onClick }) {
+      const palette = worker.color ? getColor(worker.color) : null;
+      const style = palette && !isAssigned && !isTapMode
+        ? { background: palette.bg, color: palette.fg, borderColor: palette.fg }
+        : {};
+      return (
+        <div
+          className={`worker-chip ${isTapMode ? 'tap-mode' : ''} ${isAssigned ? 'assigned' : ''}`}
+          style={style}
+          draggable
+          onDragStart={(e) => {
+            onDragStart();
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
+          onDragEnd={onDragEnd}
+          onClick={onClick}
+          title={worker.affiliation ? `所属: ${worker.affiliation}` : undefined}
+        >
+          {worker.name}
+          {isAssigned && <span className="assigned-check">✓</span>}
+        </div>
+      );
+    }
+
+    function SiteEditor({ site, onSave, onCancel }) {
+      const [name, setName] = useState(site.name);
+      const [type, setType] = useState(site.type);
+
+      return (
+        <>
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSave(site.id, name, type);
+              if (e.key === 'Escape') onCancel();
+            }}
+          />
+          <select
+            className="input"
+            style={{ flex: 0, minWidth: 80 }}
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          >
+            <option value="day">昼</option>
+            <option value="night">夜</option>
+          </select>
+          <button className="btn btn-sm btn-primary" onClick={() => onSave(site.id, name, type)}>OK</button>
+          <button className="btn btn-sm" onClick={onCancel}><X size={12} /></button>
+        </>
+      );
+    }
+
+    createRoot(document.getElementById('root')).render(<DemenApp />);
+  </script>
+</body>
+</html>
