@@ -406,6 +406,8 @@ H佐々貴
         schedules: { holidays: initHolidays, leaves: [], trainings: [], required: [] },
         // 週ごとメモ(BBQ、新年会など年に数回の一斉行事用)
         weekMemos: {},
+        // 会社名(印刷右上に表示)
+        companyName: '',
       };
     };
 
@@ -437,6 +439,8 @@ H佐々貴
         if (!parsed.schedules.trainings) parsed.schedules.trainings = [];
         if (!parsed.schedules.required) parsed.schedules.required = [];
       }
+      // 会社名
+      if (typeof parsed.companyName !== 'string') parsed.companyName = '';
       // 週ごとメモ (旧:単一文字列、新:7要素配列)
       if (!parsed.weekMemos) parsed.weekMemos = {};
       else {
@@ -2972,6 +2976,14 @@ H佐々貴
               font-size: 9pt;
               color: #444;
               white-space: nowrap;
+              text-align: right;
+            }
+            .print-company {
+              font-size: 13pt;
+              font-weight: 900;
+              color: #000;
+              margin-top: 4px;
+              letter-spacing: 0.05em;
             }
 
             .print-table {
@@ -3155,6 +3167,7 @@ H佐々貴
               .print-title { font-size: 16pt; }
               .print-period { font-size: 10pt; margin-top: 1px !important; }
               .print-revision { font-size: 8pt; }
+              .print-company { font-size: 12pt; margin-top: 2px !important; }
               /* 罫線を太く (セパレートモード版) */
               .print-table th, .print-table td {
                 border-right: 3px solid #000 !important;
@@ -3606,6 +3619,10 @@ H佐々貴
                       className={`modal-tab ${settingsTab === 'sites' ? 'active' : ''}`}
                       onClick={() => setSettingsTab('sites')}
                     ><Briefcase size={14} style={{ verticalAlign: 'middle', marginRight: 4 }}/>現場 ({activeSites.filter(s => s.type !== 'special').length})</button>
+                    <button
+                      className={`modal-tab ${settingsTab === 'company' ? 'active' : ''}`}
+                      onClick={() => setSettingsTab('company')}
+                    >会社情報</button>
                   </div>
                   <div className="modal-body">
                     {settingsTab === 'workers' ? (
@@ -3717,7 +3734,7 @@ H佐々貴
                           )}
                         </div>
                       </>
-                    ) : (
+                    ) : settingsTab === 'sites' ? (
                       <>
                         <div className="form-row">
                           <input
@@ -3812,6 +3829,23 @@ H佐々貴
                             );
                           })}
                         </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* 会社情報タブ */}
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 10, lineHeight: 1.5 }}>
+                          ここで設定した会社名は、PDF出力時の右上に表示されます。
+                        </div>
+                        <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                          会社名
+                        </label>
+                        <input
+                          className="input"
+                          placeholder="例) 花和産業株式会社"
+                          defaultValue={data.companyName || ''}
+                          onBlur={(e) => setData(prev => ({ ...prev, companyName: e.target.value.trim() }))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                        />
                       </>
                     )}
                   </div>
@@ -4373,7 +4407,10 @@ H佐々貴
                       <div className="print-period">{getWeekRangeFull()}</div>
                     </div>
                     <div className="print-revision">
-                      {formatTodayJP()}訂正バージョン
+                      <div>{formatTodayJP()}訂正バージョン</div>
+                      {data.companyName && (
+                        <div className="print-company">{data.companyName}</div>
+                      )}
                     </div>
                   </div>
 
