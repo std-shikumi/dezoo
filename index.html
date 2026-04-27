@@ -1171,7 +1171,8 @@ H佐々貴
         setSaveName('');
       };
 
-      // 保存ボタン押下: 該当週の最新ver.の次番号で自動保存
+      // 保存ボタン押下: スリム版を保存し、最新5件のみ保持
+      const SAVE_LIMIT = 5;
       const quickSave = () => {
         const wk = data.weekStartDate;
         const versions = savedFiles
@@ -1183,19 +1184,52 @@ H佐々貴
           .filter(x => x && x.wk === wk);
         const next = versions.length > 0 ? Math.max(...versions.map(v => v.n)) + 1 : 1;
         const name = `${wk}_ver.${next}`;
-        const file = {
+        // スリム版: その週のみ + マスタースナップショット
+        const slimFile = {
           name,
           savedAt: new Date().toISOString(),
-          data: data,
+          format: 'slim_v1',
+          weekStartDate: wk,
+          weekAssignment: data.assignmentsByWeek?.[wk] || emptyWeekAssignments(),
+          weekMemo: data.weekMemos?.[wk] || ['', '', '', '', '', '', ''],
+          workers: data.workers,
+          sites: data.sites,
+          companyName: data.companyName || '',
+          schedules: data.schedules || { holidays: [], leaves: [], trainings: [], required: [] },
         };
-        const newFiles = [...savedFiles, file];
+        // 全体に追加 → savedAt で降順ソート → 最新5件だけ残す
+        const newFiles = [...savedFiles, slimFile]
+          .slice()
+          .sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''))
+          .slice(0, SAVE_LIMIT);
         setSavedFiles(newFiles);
         localStorage.setItem(SETTINGS_KEY, JSON.stringify({ savedFiles: newFiles }));
-        showToast(`${name} として保存しました`);
+        showToast(`${name} として保存しました(最新${SAVE_LIMIT}件のみ保持)`);
       };
 
       const loadFile = (file) => {
-        setData(migrateData({ ...file.data }));
+        if (file.format === 'slim_v1') {
+          // 新スリム形式: マスター + 該当週のみ復元、他週はそのまま保持
+          setData(prev => {
+            const newAssignmentsByWeek = { ...(prev.assignmentsByWeek || {}) };
+            newAssignmentsByWeek[file.weekStartDate] = file.weekAssignment || {};
+            const newWeekMemos = { ...(prev.weekMemos || {}) };
+            newWeekMemos[file.weekStartDate] = file.weekMemo || ['', '', '', '', '', '', ''];
+            return {
+              ...prev,
+              weekStartDate: file.weekStartDate,
+              workers: file.workers || prev.workers,
+              sites: file.sites || prev.sites,
+              companyName: typeof file.companyName === 'string' ? file.companyName : prev.companyName,
+              schedules: file.schedules || prev.schedules,
+              weekMemos: newWeekMemos,
+              assignmentsByWeek: newAssignmentsByWeek,
+            };
+          });
+        } else if (file.data) {
+          // 旧フル形式 (互換)
+          setData(migrateData({ ...file.data }));
+        }
         setShowLoadDialog(false);
       };
 
