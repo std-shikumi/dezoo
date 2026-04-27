@@ -3125,15 +3125,19 @@ H佐々貴
                 font-family: "Hiragino Sans", "Yu Gothic Medium", "Yu Gothic", "Meiryo", "MS Gothic", "Noto Sans CJK JP", sans-serif !important;
               }
 
-              /* 1ページに収めるため少し圧縮 */
-              .print-table { font-size: 8pt; }
-              .print-table th { font-size: 9pt; padding: 3px 3px; }
-              .print-table td { padding: 2px 3px; }
-              .print-workers-grid { font-size: 7.5pt; gap: 0 2px; }
-              .print-worker { padding: 0 1px; line-height: 1.2; }
-              .print-title { font-size: 18pt; }
-              .print-period { font-size: 11pt; }
-              .print-revision { font-size: 8pt; }
+              /* 1ページに収めるため圧縮 */
+              .print-table { font-size: 7.5pt; }
+              .print-table th { font-size: 9pt; padding: 2px 3px; }
+              .print-table td { padding: 1px 3px; }
+              .print-workers-grid { font-size: 7pt; gap: 0 2px; }
+              .print-worker { padding: 0 1px; line-height: 1.15; }
+              .print-page-header {
+                padding: 0 0 3px 0 !important;
+                margin-bottom: 3px !important;
+              }
+              .print-title { font-size: 15pt; }
+              .print-period { font-size: 9pt; margin-top: 1px !important; }
+              .print-revision { font-size: 7pt; }
 
               /* 黒見出しは色付きで印刷（ヘッダ視認性のため） */
               .print-table th {
@@ -4374,7 +4378,7 @@ H佐々貴
                       {currentWeekMemos.some(m => m && m.trim()) && (() => {
                         const memoHasContent = true;
                         const totalRows = orderedSites.length + 1;
-                        const rh = `${(260 / totalRows).toFixed(2)}mm`;
+                        const rh = `${(225 / totalRows).toFixed(2)}mm`;
                         return (
                           <tr style={{ height: rh }}>
                             <td className="td-site" style={{ height: rh }}>メモ</td>
@@ -4387,7 +4391,7 @@ H佐々貴
                       {(() => {
                         const memoHasContent = currentWeekMemos.some(m => m && m.trim());
                         const totalRows = orderedSites.length + (memoHasContent ? 1 : 0);
-                        const rh = totalRows > 0 ? `${(260 / totalRows).toFixed(2)}mm` : 'auto';
+                        const rh = totalRows > 0 ? `${(225 / totalRows).toFixed(2)}mm` : 'auto';
                         return orderedSites.map(site => (
                           <tr key={site.id} style={{ height: rh }}>
                             <td className="td-site" style={{ height: rh }}>{site.name}</td>
