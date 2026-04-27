@@ -636,17 +636,28 @@ H佐々貴
         showToast('元に戻しました');
       };
 
-      // PDF保存時のファイル名のため、週範囲をタイトルに反映
+      // PDF保存時のファイル名のため、週範囲とver.をタイトルに反映
       useEffect(() => {
         try {
           const start = parseLocalDate(data.weekStartDate);
           const end = new Date(start);
           end.setDate(end.getDate() + 6);
-          document.title = `Dezoo_工事出面表_${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日-${end.getMonth() + 1}月${end.getDate()}日`;
+          const base = `Dezoo_工事出面表_${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日-${end.getMonth() + 1}月${end.getDate()}日`;
+          // 該当週の最新ver.を抽出
+          const wk = data.weekStartDate;
+          const vers = savedFiles
+            .map(f => {
+              const m = (f.name || '').match(/^(.+)_ver\.(\d+)$/);
+              if (!m || m[1] !== wk) return null;
+              return Number(m[2]);
+            })
+            .filter(n => n !== null);
+          const latest = vers.length > 0 ? Math.max(...vers) : null;
+          document.title = latest !== null ? `${base}_ver.${latest}` : base;
         } catch (e) {
           document.title = 'Dezoo';
         }
-      }, [data.weekStartDate]);
+      }, [data.weekStartDate, savedFiles]);
 
       // 確認ダイアログヘルパー
       const askConfirm = (message, onConfirm) => {
