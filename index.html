@@ -2977,6 +2977,15 @@ H佐々貴
               background: #fff;
             }
 
+            /* 各現場行の高さを固定して、人数によらず表全体のサイズを安定させる */
+            .print-table tbody tr {
+              height: 14mm;
+            }
+            .print-table tbody td {
+              height: 14mm;
+              overflow: hidden;
+            }
+
             .print-table th {
               background: #000 !important;
               color: #fff !important;
