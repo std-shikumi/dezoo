@@ -3417,6 +3417,10 @@ H佐々貴
               /* 編集中マーカーが収まらないことがあるので折り返し可 */
               .pool-title { flex-wrap: wrap; }
 
+              /* スマホでは配置済みチップの×ボタンを非表示(誤削除防止)
+                 削除は長押しメニュー → 「選択を削除」で行う */
+              .placed-remove { display: none !important; }
+
               /* CSV取込モーダル等のタブ詰め */
               .modal-tabs { overflow-x: auto; }
               .modal-tab { padding: 10px 8px; font-size: 13px; min-width: 80px; }
