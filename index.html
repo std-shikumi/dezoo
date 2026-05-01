@@ -5002,17 +5002,9 @@ H佐々貴
                 ) : (
                   <>
                     <button
-                      onClick={() => { buildClipboard('copy'); setContextMenu(null); }}
+                      onClick={() => { clearSelectedWorkers(); setContextMenu(null); }}
                       disabled={selectedWorkers.size === 0}
-                    >コピー <span className="menu-count">({selectedWorkers.size}名)</span><span className="menu-shortcut">Ctrl+C</span></button>
-                    <button
-                      onClick={() => { buildClipboard('cut'); setContextMenu(null); }}
-                      disabled={selectedWorkers.size === 0}
-                    >カット<span className="menu-shortcut">Ctrl+X</span></button>
-                    <button
-                      onClick={() => { pasteClipboard(); setContextMenu(null); }}
-                      disabled={!clipboard || !activeCell}
-                    >ペースト<span className="menu-shortcut">Ctrl+V</span></button>
+                    >削除 <span className="menu-count">({selectedWorkers.size}名)</span><span className="menu-shortcut">Del</span></button>
                     <div className="menu-divider" />
                     <button
                       onClick={() => {
@@ -5025,9 +5017,18 @@ H佐々貴
                     >移動先を指定… <span className="menu-count">({selectedWorkers.size}名)</span></button>
                     <div className="menu-divider" />
                     <button
-                      onClick={() => { clearSelectedWorkers(); setContextMenu(null); }}
+                      onClick={() => { buildClipboard('copy'); setContextMenu(null); }}
                       disabled={selectedWorkers.size === 0}
-                    >選択を削除<span className="menu-shortcut">Del</span></button>
+                    >コピー <span className="menu-count">({selectedWorkers.size}名)</span><span className="menu-shortcut">Ctrl+C</span></button>
+                    <button
+                      onClick={() => { buildClipboard('cut'); setContextMenu(null); }}
+                      disabled={selectedWorkers.size === 0}
+                    >カット<span className="menu-shortcut">Ctrl+X</span></button>
+                    <button
+                      onClick={() => { pasteClipboard(); setContextMenu(null); }}
+                      disabled={!clipboard || !activeCell}
+                    >ペースト<span className="menu-shortcut">Ctrl+V</span></button>
+                    <div className="menu-divider" />
                     <button
                       onClick={() => { setSelectedWorkers(new Set()); setActiveCell(null); setContextMenu(null); }}
                       disabled={selectedWorkers.size === 0}
