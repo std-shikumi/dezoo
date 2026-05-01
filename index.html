@@ -3997,6 +3997,18 @@ H佐々貴
                                         className="placed-remove no-print"
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          // タップモード中は配置動作を優先(誤って×に当たっても配置)
+                                          if (tapMode && tapMode.workerIds && tapMode.workerIds.length > 0) {
+                                            tapMode.workerIds.forEach(twid => assignWorker(twid, day, site.id));
+                                            setTapMode(null);
+                                            return;
+                                          }
+                                          // 移動先指定モード中も同様
+                                          if (awaitingMoveTarget) {
+                                            moveSelectedToCell(day, site.id);
+                                            setAwaitingMoveTarget(false);
+                                            return;
+                                          }
                                           removeWorker(wid, day, site.id);
                                         }}
                                         aria-label="削除"
