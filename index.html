@@ -666,6 +666,8 @@ H佐々貴
       const [reorderHover, setReorderHover] = useState(null); // { kind, id, position: 'above'|'below' }
       // モバイル: 複数選択モード(ONでタップが選択トグルに)
       const [multiSelectMode, setMultiSelectMode] = useState(false);
+      // モバイル: 移動先指定モード (次にタップしたセルへ選択中の人員を移動)
+      const [awaitingMoveTarget, setAwaitingMoveTarget] = useState(false);
       // モバイル: 長押し検出用
       const longPressTimerRef = useRef(null);
       const longPressStartPosRef = useRef(null);
@@ -1856,14 +1858,10 @@ H佐々貴
         showToast(`${DAY_LABELS[day]}曜日に自動配置しました`);
       };
 
-      // 選択中の人員をアクティブセルへ移動 (モバイル/タッチでドラッグ代替)
-      const moveSelectedToActiveCell = () => {
+      // 選択中の人員を任意のセルへ移動
+      const moveSelectedToCell = (tDay, targetSiteId) => {
         if (selectedWorkers.size === 0) {
           showToast('人員を選択してください');
-          return;
-        }
-        if (!activeCell) {
-          showToast('移動先のセルを長押しで選んでください');
           return;
         }
         const groups = groupSelectedByCell();
@@ -1871,8 +1869,6 @@ H佐々貴
         groups.forEach(g => g.workerIds.forEach(wid => {
           if (!allWorkerIds.includes(wid)) allWorkerIds.push(wid);
         }));
-        const tDay = activeCell.day;
-        const targetSiteId = activeCell.siteId;
 
         const newSelection = new Set();
         updateCurrentWeekAssignments((cur, prev) => {
@@ -1957,6 +1953,7 @@ H佐々貴
             setActiveCell(null);
             setContextMenu(null);
             setRectSelect(null);
+            setAwaitingMoveTarget(false);
           }
         };
         document.addEventListener('keydown', onKey);
@@ -2016,6 +2013,29 @@ H佐々貴
             * {
               box-sizing: border-box;
               -webkit-tap-highlight-color: transparent;
+            }
+
+            /* iOS Safari: 長押しでコピー/ルーペが出ないようにする (出面表内の主要要素のみ対象) */
+            .grid-header,
+            .day-cell,
+            .site-cell,
+            .placed-worker,
+            .worker-chip,
+            .pool-title,
+            .modal-tab {
+              -webkit-touch-callout: none;
+              -webkit-user-select: none;
+              user-select: none;
+            }
+            /* 入力系は通常のテキスト選択を許可 */
+            .input,
+            textarea,
+            .memo-input,
+            .affiliation-input,
+            input {
+              -webkit-touch-callout: default;
+              -webkit-user-select: text;
+              user-select: text;
             }
 
             .demen-root {
@@ -3583,6 +3603,12 @@ H佐々貴
               </div>
             </div>
 
+            {awaitingMoveTarget && (
+              <div className="help-banner no-print" style={{ background: '#ffe5cc', borderColor: '#ff6b35', borderStyle: 'solid', borderWidth: '2px', fontWeight: 700 }}>
+                👉 移動先のセルをタップしてください ({selectedWorkers.size}名)
+                <button className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => setAwaitingMoveTarget(false)}>キャンセル</button>
+              </div>
+            )}
             {tapMode && (
               <div className="help-banner no-print">
                 👉 「<strong>{(tapMode.workerIds || []).map(id => getWorkerName(id)).join('、')}</strong>」({(tapMode.workerIds || []).length}名) を配置する現場をタップしてください。
@@ -3851,6 +3877,12 @@ H佐々貴
                                 }}
                                 onClick={(e) => {
                                   if (longPressTriggeredRef.current) { longPressTriggeredRef.current = false; return; }
+                                  // 移動先指定モード中: タップしたセルに選択中を移動
+                                  if (awaitingMoveTarget) {
+                                    moveSelectedToCell(day, site.id);
+                                    setAwaitingMoveTarget(false);
+                                    return;
+                                  }
                                   if (tapMode && tapMode.workerIds && tapMode.workerIds.length > 0) {
                                     tapMode.workerIds.forEach(wid => assignWorker(wid, day, site.id));
                                     setTapMode(null);
@@ -3929,6 +3961,12 @@ H佐々貴
                                         e.stopPropagation();
                                         if (longPressTriggeredRef.current) { longPressTriggeredRef.current = false; return; }
                                         if (rectSelect) return;
+                                        // 移動先指定モード中: チップ上タップでもこのセルへ移動
+                                        if (awaitingMoveTarget) {
+                                          moveSelectedToCell(day, site.id);
+                                          setAwaitingMoveTarget(false);
+                                          return;
+                                        }
                                         // タップモード中は配置動作を優先(既存チップに当たっても配置)
                                         if (tapMode && tapMode.workerIds && tapMode.workerIds.length > 0) {
                                           tapMode.workerIds.forEach(wid => assignWorker(wid, day, site.id));
@@ -4961,9 +4999,14 @@ H佐々貴
                     >ペースト<span className="menu-shortcut">Ctrl+V</span></button>
                     <div className="menu-divider" />
                     <button
-                      onClick={() => { moveSelectedToActiveCell(); setContextMenu(null); }}
-                      disabled={selectedWorkers.size === 0 || !activeCell}
-                    >ここに移動 <span className="menu-count">({selectedWorkers.size}名)</span></button>
+                      onClick={() => {
+                        if (selectedWorkers.size === 0) return;
+                        setAwaitingMoveTarget(true);
+                        setContextMenu(null);
+                        showToast('移動先のセルをタップしてください');
+                      }}
+                      disabled={selectedWorkers.size === 0}
+                    >移動先を指定… <span className="menu-count">({selectedWorkers.size}名)</span></button>
                     <div className="menu-divider" />
                     <button
                       onClick={() => { clearSelectedWorkers(); setContextMenu(null); }}
