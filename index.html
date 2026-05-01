@@ -1856,6 +1856,58 @@ H佐々貴
         showToast(`${DAY_LABELS[day]}曜日に自動配置しました`);
       };
 
+      // 選択中の人員をアクティブセルへ移動 (モバイル/タッチでドラッグ代替)
+      const moveSelectedToActiveCell = () => {
+        if (selectedWorkers.size === 0) {
+          showToast('人員を選択してください');
+          return;
+        }
+        if (!activeCell) {
+          showToast('移動先のセルを長押しで選んでください');
+          return;
+        }
+        const groups = groupSelectedByCell();
+        const allWorkerIds = [];
+        groups.forEach(g => g.workerIds.forEach(wid => {
+          if (!allWorkerIds.includes(wid)) allWorkerIds.push(wid);
+        }));
+        const tDay = activeCell.day;
+        const targetSiteId = activeCell.siteId;
+
+        const newSelection = new Set();
+        updateCurrentWeekAssignments((cur, prev) => {
+          const newAssignments = cur.map(da => ({ ...da }));
+          // 元セルから除去
+          groups.forEach(g => {
+            newAssignments[g.day] = { ...newAssignments[g.day] };
+            const list = newAssignments[g.day][g.siteId] || [];
+            newAssignments[g.day][g.siteId] = list.filter(wid => !g.workerIds.includes(wid));
+          });
+          const targetSite = prev.sites.find(s => s.id === targetSiteId);
+          if (!targetSite) return newAssignments;
+          // 移動先に追加 (重複排除)
+          const existing = (newAssignments[tDay][targetSiteId] || []).filter(wid => !allWorkerIds.includes(wid));
+          newAssignments[tDay] = { ...newAssignments[tDay], [targetSiteId]: [...existing, ...allWorkerIds] };
+          // 同日他セルから(昼夜以外)除外
+          Object.keys(newAssignments[tDay]).forEach(sid => {
+            if (sid === targetSiteId) return;
+            const otherSite = prev.sites.find(s => s.id === sid);
+            if (!otherSite) return;
+            const allowDual = (
+              (targetSite.type === 'day' && otherSite.type === 'night') ||
+              (targetSite.type === 'night' && otherSite.type === 'day')
+            );
+            if (!allowDual) {
+              newAssignments[tDay][sid] = (newAssignments[tDay][sid] || []).filter(wid => !allWorkerIds.includes(wid));
+            }
+          });
+          allWorkerIds.forEach(wid => newSelection.add(workerKey(tDay, targetSiteId, wid)));
+          return newAssignments;
+        });
+        setSelectedWorkers(newSelection);
+        showToast(`${allWorkerIds.length}名を移動しました`);
+      };
+
       const clearSelectedWorkers = () => {
         if (selectedWorkers.size === 0) return;
         const groups = groupSelectedByCell();
@@ -4907,6 +4959,11 @@ H佐々貴
                       onClick={() => { pasteClipboard(); setContextMenu(null); }}
                       disabled={!clipboard || !activeCell}
                     >ペースト<span className="menu-shortcut">Ctrl+V</span></button>
+                    <div className="menu-divider" />
+                    <button
+                      onClick={() => { moveSelectedToActiveCell(); setContextMenu(null); }}
+                      disabled={selectedWorkers.size === 0 || !activeCell}
+                    >ここに移動 <span className="menu-count">({selectedWorkers.size}名)</span></button>
                     <div className="menu-divider" />
                     <button
                       onClick={() => { clearSelectedWorkers(); setContextMenu(null); }}
