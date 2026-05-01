@@ -664,6 +664,12 @@ H佐々貴
       // 並び替えD&D用 (workers/sites)
       const [reorderDrag, setReorderDrag] = useState(null); // { kind: 'worker'|'site', id }
       const [reorderHover, setReorderHover] = useState(null); // { kind, id, position: 'above'|'below' }
+      // モバイル: 複数選択モード(ONでタップが選択トグルに)
+      const [multiSelectMode, setMultiSelectMode] = useState(false);
+      // モバイル: 長押し検出用
+      const longPressTimerRef = useRef(null);
+      const longPressStartPosRef = useRef(null);
+      const longPressTriggeredRef = useRef(false);
       // 優先メンバー編集
       const [preferredEditSite, setPreferredEditSite] = useState(null); // siteId or null
       // アンドゥ履歴
@@ -1338,6 +1344,44 @@ H佐々貴
         return ids.map(wid => workerKey(day, siteId, wid));
       };
 
+      // 長押し検出ヘルパー: 指定時間タッチを保持で callback 発火
+      const makeLongPress = (callback, duration = 500) => ({
+        onTouchStart: (e) => {
+          if (e.touches.length > 1) return;
+          const t = e.touches[0];
+          longPressStartPosRef.current = { x: t.clientX, y: t.clientY };
+          longPressTriggeredRef.current = false;
+          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = setTimeout(() => {
+            longPressTriggeredRef.current = true;
+            callback({ x: t.clientX, y: t.clientY });
+            longPressTimerRef.current = null;
+          }, duration);
+        },
+        onTouchMove: (e) => {
+          if (!longPressTimerRef.current || !longPressStartPosRef.current) return;
+          const t = e.touches[0];
+          const dx = t.clientX - longPressStartPosRef.current.x;
+          const dy = t.clientY - longPressStartPosRef.current.y;
+          if (Math.sqrt(dx * dx + dy * dy) > 10) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+        },
+        onTouchEnd: () => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+        },
+        onTouchCancel: () => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+        },
+      });
+
       // 単一人員クリック
       const clickWorker = (day, siteId, workerId, e) => {
         const key = workerKey(day, siteId, workerId);
@@ -1348,8 +1392,8 @@ H佐々貴
             next.add(key);
             return next;
           });
-        } else if (e && (e.ctrlKey || e.metaKey)) {
-          // トグル
+        } else if ((e && (e.ctrlKey || e.metaKey)) || multiSelectMode) {
+          // トグル (Ctrl/Cmd または 複数選択モードON)
           setSelectedWorkers(prev => {
             const next = new Set(prev);
             if (next.has(key)) next.delete(key);
@@ -1373,8 +1417,8 @@ H佐々貴
             cellKeys.forEach(k => next.add(k));
             return next;
           });
-        } else if (e && (e.ctrlKey || e.metaKey)) {
-          // セル全員をトグル（全選択 or 全解除）
+        } else if ((e && (e.ctrlKey || e.metaKey)) || multiSelectMode) {
+          // セル全員をトグル（Ctrl/Cmd または 複数選択モードON）
           setSelectedWorkers(prev => {
             const next = new Set(prev);
             const allIn = cellKeys.length > 0 && cellKeys.every(k => next.has(k));
@@ -3507,7 +3551,16 @@ H佐々貴
                         <span className="active-day-marker-label">編集中</span>
                       </span>
                     )}
-                    <span className="pool-hint">ドラッグ または タップ→配置先タップ</span>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${multiSelectMode ? 'btn-primary' : ''}`}
+                      onClick={() => setMultiSelectMode(!multiSelectMode)}
+                      style={{ marginLeft: 4 }}
+                      title="ONにするとタップが選択トグルに(複数選択用)"
+                    >
+                      {multiSelectMode ? '✓ 複数選択中' : '複数選択'}
+                    </button>
+                    <span className="pool-hint">ドラッグ / タップ→配置先タップ / 長押しでメニュー</span>
                   </div>
                 </div>
                 {activeWorkers.length === 0 ? (
@@ -3580,13 +3633,19 @@ H佐々貴
                         <div
                           key={i}
                           className={`grid-header ${cls} ${isActive ? 'active-day' : ''} ${isHoliday ? 'holiday-day' : ''} no-print-active`}
-                          onClick={() => setSelectedDay(isActive ? null : i)}
+                          onClick={() => {
+                            if (longPressTriggeredRef.current) { longPressTriggeredRef.current = false; return; }
+                            setSelectedDay(isActive ? null : i);
+                          }}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             setContextMenu({ x: e.clientX, y: e.clientY, kind: 'day', day: i });
                           }}
+                          {...makeLongPress(({ x, y }) => {
+                            setContextMenu({ x, y, kind: 'day', day: i });
+                          })}
                           style={{ cursor: 'pointer' }}
-                          title={isActive ? 'クリックで全曜日表示に戻す' : 'この曜日をアクティブにする / 右クリックでメニュー'}
+                          title={isActive ? 'クリックで全曜日表示に戻す' : 'この曜日をアクティブにする / 右クリックまたは長押しでメニュー'}
                         >
                           {label}
                           <span className="grid-day-num">{formatDate(data.weekStartDate, i)}</span>
@@ -3729,6 +3788,7 @@ H佐々貴
                                   setDraggedWorker(null);
                                 }}
                                 onClick={(e) => {
+                                  if (longPressTriggeredRef.current) { longPressTriggeredRef.current = false; return; }
                                   if (tapMode) {
                                     assignWorker(tapMode.workerId, day, site.id);
                                     setTapMode(null);
@@ -3750,6 +3810,14 @@ H佐々貴
                                   setActiveCell({ day, siteId: site.id });
                                   setContextMenu({ x: e.clientX, y: e.clientY });
                                 }}
+                                {...makeLongPress(({ x, y }) => {
+                                  if (selectedWorkers.size === 0) {
+                                    const keys = getCellWorkerKeys(day, site.id);
+                                    setSelectedWorkers(new Set(keys));
+                                  }
+                                  setActiveCell({ day, siteId: site.id });
+                                  setContextMenu({ x, y, kind: 'cell' });
+                                })}
                               >
                                 {workerIds.map((wid, idx) => {
                                   const w = data.workers.find(x => x.id === wid);
@@ -3797,6 +3865,7 @@ H佐々貴
                                       onDragEnd={() => setDraggedWorker(null)}
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (longPressTriggeredRef.current) { longPressTriggeredRef.current = false; return; }
                                         if (rectSelect) return;
                                         // タップモード中は配置動作を優先(既存チップに当たっても配置)
                                         if (tapMode) {
@@ -3815,6 +3884,13 @@ H佐々貴
                                         setActiveCell({ day, siteId: site.id });
                                         setContextMenu({ x: e.clientX, y: e.clientY });
                                       }}
+                                      {...makeLongPress(({ x, y }) => {
+                                        if (!isWorkerSelected) {
+                                          setSelectedWorkers(new Set([wKey]));
+                                        }
+                                        setActiveCell({ day, siteId: site.id });
+                                        setContextMenu({ x, y, kind: 'cell' });
+                                      })}
                                     >
                                       <span className="placed-name">{w.name}</span>
                                       <button
