@@ -3798,6 +3798,12 @@ H佐々貴
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (rectSelect) return;
+                                        // タップモード中は配置動作を優先(既存チップに当たっても配置)
+                                        if (tapMode) {
+                                          assignWorker(tapMode.workerId, day, site.id);
+                                          setTapMode(null);
+                                          return;
+                                        }
                                         clickWorker(day, site.id, wid, e);
                                       }}
                                       onContextMenu={(e) => {
