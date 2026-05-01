@@ -3533,7 +3533,7 @@ H佐々貴
 
             {tapMode && (
               <div className="help-banner no-print">
-                👉 「<strong>{getWorkerName(tapMode.workerId)}</strong>」を配置する現場をタップしてください。
+                👉 「<strong>{(tapMode.workerIds || []).map(id => getWorkerName(id)).join('、')}</strong>」({(tapMode.workerIds || []).length}名) を配置する現場をタップしてください。
                 <button className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => setTapMode(null)}>キャンセル</button>
               </div>
             )}
@@ -3581,12 +3581,22 @@ H佐々貴
                           key={w.id}
                           worker={w}
                           isAssigned={assignedToday.has(w.id)}
-                          isTapMode={tapMode?.workerId === w.id}
+                          isTapMode={(tapMode?.workerIds || []).includes(w.id)}
                           onDragStart={() => setDraggedWorker({ workerId: w.id, source: 'pool' })}
                           onDragEnd={() => setDraggedWorker(null)}
                           onClick={() => {
-                            if (tapMode?.workerId === w.id) setTapMode(null);
-                            else setTapMode({ workerId: w.id });
+                            setTapMode(prev => {
+                              const ids = prev?.workerIds || [];
+                              if (multiSelectMode) {
+                                // 複数選択モード: トグル
+                                const has = ids.includes(w.id);
+                                const next = has ? ids.filter(x => x !== w.id) : [...ids, w.id];
+                                return next.length > 0 ? { workerIds: next } : null;
+                              }
+                              // 通常: 単独選択 or 同じ人を再タップで解除
+                              if (ids.length === 1 && ids[0] === w.id) return null;
+                              return { workerIds: [w.id] };
+                            });
                           }}
                         />
                       ))}
@@ -3789,8 +3799,8 @@ H佐々貴
                                 }}
                                 onClick={(e) => {
                                   if (longPressTriggeredRef.current) { longPressTriggeredRef.current = false; return; }
-                                  if (tapMode) {
-                                    assignWorker(tapMode.workerId, day, site.id);
+                                  if (tapMode && tapMode.workerIds && tapMode.workerIds.length > 0) {
+                                    tapMode.workerIds.forEach(wid => assignWorker(wid, day, site.id));
                                     setTapMode(null);
                                     return;
                                   }
@@ -3868,8 +3878,8 @@ H佐々貴
                                         if (longPressTriggeredRef.current) { longPressTriggeredRef.current = false; return; }
                                         if (rectSelect) return;
                                         // タップモード中は配置動作を優先(既存チップに当たっても配置)
-                                        if (tapMode) {
-                                          assignWorker(tapMode.workerId, day, site.id);
+                                        if (tapMode && tapMode.workerIds && tapMode.workerIds.length > 0) {
+                                          tapMode.workerIds.forEach(wid => assignWorker(wid, day, site.id));
                                           setTapMode(null);
                                           return;
                                         }
